@@ -118,7 +118,10 @@ Section BasicSetFacts.
            (a1::l1) [<=] l2.
   Proof. { unfold "[<=]". intros. apply H in H2 as H2a.  destruct H2a. subst a.
    eauto. exact. } Qed.
-
+  Lemma Subset_elim3 (a:A)(l1 l2: list A):
+       l1 [<=](a::l2) -> ~In a l1 -> l1 [<=] l2.
+  Proof. unfold "[<=]". intros.  apply H in H1 as H1a.
+       destruct H1a. subst. eauto. auto. Qed.
    
 Hint Extern 0 (?x [<=] ?z)  =>
 match goal with
@@ -227,7 +230,7 @@ end : core.
 
 
 Hint Immediate Eq_refl Eq_sym Equal_elim Equal_intro Equal_intro1: core.
-Hint Immediate  Subset_elim1 Subset_elim2 Subset_nil Subset_of_nil: core.
+Hint Immediate  Subset_elim1 Subset_elim2 Subset_nil Subset_of_nil Subset_elim3: core.
 Hint Resolve  self_incl: core.
 Hint Resolve Subset_intro Subset_intro1: core.
 

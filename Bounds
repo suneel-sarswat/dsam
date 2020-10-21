@@ -1,0 +1,193 @@
+
+
+(* ---------------------------------------------------------------------------------------
+
+   This file contains results of bounds on Matchings. 
+ -------------------------------------------------------------------------------------- *)
+
+
+Require Export MQFair.
+
+
+Section bounds.
+
+
+Fixpoint bids_above (p:nat)(M:list fill_type) :=
+match M with 
+|nil => nil
+|m::M' => match (Nat.leb p (bid_of m)) with
+  |true => (bid_of m)::(bids_above p M')
+  |false => (bids_above p M')
+  end
+end.
+
+Fixpoint asks_below (p:nat)(M:list fill_type) :=
+match M with 
+|nil => nil
+|m::M' => match (Nat.leb (ask_of m) p) with
+  |true => (ask_of m)::(asks_below p M')
+  |false => (asks_below p M')
+  end
+end.
+
+Lemma matchable_buy_above_sell_below (b:Bid) (a: Ask) (B: list Bid) (A: list Ask) (p:nat):
+ In b (buyers_above p B) -> In a (sellers_below p A)
+-> a<=b.
+Proof. intros. apply  buyers_above_elim in H. apply sellers_below_elim in H0. lia. Qed. 
+
+Lemma buy_below_above_total (M: list fill_type) (B:list Bid) (A:list Ask) (p:nat):
+(matching_in B A M) -> 
+QB((buyers_above p (bids_of M))) + QB((buyers_below p (bids_of M))) >= QM(M).
+Proof. { intros H.
+          induction M as [| m M']. { simpl. auto. }
+           { simpl.  
+             destruct ( Nat.leb p (bid_of m)) eqn: Hpm;destruct (Nat.leb (bid_of m) p)  eqn: Hmp.
+             { move /leP in Hpm. move /leP in Hmp. assert(p=bp (bid_of m)). lia.
+               
+            
+Lemma sell_below_above_total (M: list fill_type) (B:list Bid) (A:list Ask) (p:nat):
+(matching_in B A M) -> (|(sellers_above p (asks_of M))|) + (|(sellers_below p (asks_of M))|) >= |M|.
+Proof. { intros H. destruct H as [H H0]. destruct H0 as [H0 H1]. 
+          destruct H as [H H2]. destruct H2 as [H2 H3].
+          induction M. { simpl. auto. }
+           { simpl.  
+            destruct (p <=? ask_of a) eqn: Hpb.
+            { destruct (ask_of a <=? p) eqn: Hpa.
+            { simpl. cut ((|(sellers_above p (asks_of M))|) + (|(sellers_below p (asks_of M))|) >= |M|). 
+            omega. apply IHM. all:eauto. }
+            { simpl. cut ((|(sellers_above p (asks_of M))|) + (|(sellers_below p (asks_of M))|) >= |M|). 
+            omega. apply IHM. all:eauto. } }
+            { destruct (ask_of a <=? p) eqn: Hpa.
+            { simpl. cut ((|(sellers_above p (asks_of M))|) + (|(sellers_below p (asks_of M))|) >= |M|). omega. apply IHM. all:eauto. }
+            { move /leP in Hpb. move /leP in Hpa. omega. } }}} Qed.
+
+
+Lemma maching_buyer_right_plus_seller_left 
+(M: list fill_type) (B:list Bid) (A:list Ask) (p:nat):
+(matching_in B A M) -> (|(buyers_above p (bids_of M))|) + (|(sellers_below p (asks_of M))|) >= |M|.
+Proof.  intros H. apply sellers_below_ge_buyers with (p:=p) in H  as H1.
+                  eapply buyers_above_ge_sellers with (p:=p) in H as H2.
+                  eapply buy_below_above_total with (p:=p) in H as H3.
+                  eapply sell_below_above_total with (p:=p) in H as H4.
+                  omega. Qed.
+
+Lemma buyers_above_delete_S (A : list Bid) (b:Bid) (p:nat):
+In b A -> p<= b-> (| buyers_above p A |)=S((| buyers_above p (delete b A) |)).
+Proof. { intros. induction A. destruct H. simpl. destruct (p <=? a) eqn: Hpa.
+{ destruct (b_eqb b a) eqn:Hba. simpl. auto. simpl. destruct (p <=? a).
+simpl. move /eqP in Hba. simpl in H. destruct H. subst a. destruct Hba.
+auto. apply IHA in H. omega. inversion Hpa. }
+{ destruct (b_eqb b a) eqn: Hba. move /eqP in Hba. subst. move /leP in H0.
+  assert (p <=? a = true). eauto. rewrite H1 in Hpa. inversion Hpa.
+  simpl. destruct (p <=? a) eqn: Hpa2. inversion Hpa. apply IHA. 
+  move /eqP in Hba. simpl in H. destruct H. subst a. destruct Hba. auto. exact. }} Qed.
+
+Lemma buyers_above_delete (A : list Bid) (b:Bid) (p:nat):
+In b A -> (p <=? b) = false -> (| buyers_above p A |)=(| buyers_above p (delete b A) |).
+Proof. { intros. induction A. destruct H. simpl. destruct (p <=? a) eqn: Hpa.
+{ destruct (b_eqb b a) eqn:Hba. simpl. move /eqP in Hba. subst a.
+rewrite H0 in Hpa. inversion Hpa. simpl. destruct (p <=? a).
+simpl. move /eqP in Hba. simpl in H. destruct H. subst a. destruct Hba.
+auto. apply IHA in H. omega. inversion Hpa. }
+{ destruct (b_eqb b a) eqn: Hba. auto. simpl.
+  destruct (p <=? a) eqn: Hpa2. inversion Hpa. apply IHA. 
+  move /eqP in Hba. simpl in H. destruct H. subst a. destruct Hba. auto. exact. }} Qed.
+  
+Lemma sellers_below_delete_S (A : list Ask) (b:Ask) (p:nat):
+In b A -> b<= p-> (| sellers_below p A |)=S((| sellers_below p (delete b A) |)).
+Proof. { intros. induction A. destruct H. simpl. destruct (a <=? p) eqn: Hpa.
+{ destruct (a_eqb b a) eqn:Hba. simpl. auto. simpl. destruct (a <=? p).
+simpl. move /eqP in Hba. simpl in H. destruct H. subst a. destruct Hba.
+auto. apply IHA in H. omega. inversion Hpa. }
+{ destruct (a_eqb b a) eqn: Hba. move /eqP in Hba. subst. move /leP in H0.
+  assert (a <=? p = true). eauto. rewrite H1 in Hpa. inversion Hpa.
+  simpl. destruct (a <=? p) eqn: Hpa2. inversion Hpa. apply IHA. 
+  move /eqP in Hba. simpl in H. destruct H. subst a. destruct Hba. auto. exact. }} Qed.
+
+Lemma sellers_below_delete (A : list Ask) (b:Ask) (p:nat):
+In b A -> (b <=? p) = false -> 
+(| sellers_below p A |)=(| sellers_below p (delete b A) |).
+Proof. { intros. induction A. destruct H. simpl. destruct (a <=? p) eqn: Hpa.
+{ destruct (a_eqb b a) eqn:Hba. simpl. move /eqP in Hba. subst a.
+rewrite H0 in Hpa. inversion Hpa. simpl. destruct (a <=? p).
+simpl. move /eqP in Hba. simpl in H. destruct H. subst a. destruct Hba.
+auto. apply IHA in H. omega. inversion Hpa. }
+{ destruct (a_eqb b a) eqn: Hba. auto. simpl.
+  destruct (a <=? p) eqn: Hpa2. inversion Hpa. apply IHA. 
+  move /eqP in Hba. simpl in H. destruct H. subst a. destruct Hba. auto. exact. }} Qed.
+  
+
+Lemma buyers_above_bid_size (A B:list Bid) (p:nat):
+A [<=] B -> NoDup A -> (|buyers_above p B|) >= (|buyers_above p A|).
+Proof. { revert A. induction B as [| b]. intros. assert (A=nil). eauto. subst A.
+simpl. omega. intros. assert (In b A \/ ~In b A). eauto. destruct H1.
+{
+simpl. destruct (p <=? b) eqn: Hpa. simpl.
+assert ((| buyers_above p A |)=S((| buyers_above p (delete b A) |))).
+{ eapply buyers_above_delete_S. exact. move /leP in Hpa. exact. } rewrite H2. cut (| buyers_above p B | >= | buyers_above p (delete b A) |).
+omega. assert (delete b A [<=] delete b (b::B)). eapply delete_subset2. exact. exact.
+simpl in H3. destruct (b_eqb b b) eqn:Hbb. apply IHB in H3. exact. eauto.
+ move /eqP in Hbb. destruct Hbb. auto.
+ assert ((| buyers_above p A |)=(| buyers_above p (delete b A) |)).
+{ apply buyers_above_delete. exact. exact.  } rewrite H2.  assert (delete b A [<=] delete b (b::B)). eapply delete_subset2. exact. exact.
+simpl in H3. destruct (b_eqb b b) eqn:Hbb. apply IHB in H3. exact. eauto.
+ move /eqP in Hbb. destruct Hbb. auto. }
+{ assert (A[<=]B). { assert (delete b A [<=] delete b (b::B)). eapply delete_subset2.
+exact. exact. simpl in H2.  destruct (b_eqb b b) eqn: Hbb. assert (A=delete b A).
+eapply delete_intro1. exact. rewrite <- H3 in H2. exact. move /eqP in Hbb. destruct Hbb. auto. } simpl. destruct (p <=? b) eqn: Hpa. simpl.
+cut ((| buyers_above p B |) >= (| buyers_above p A |)). omega. apply IHB. eauto. eauto.
+apply IHB. eauto. eauto. } } Qed.
+
+Lemma sellers_below_ask_size 
+(M: list fill_type) (A B:list Ask) (p:nat):
+A [<=] B -> NoDup A -> (|sellers_below p B|) >= (|sellers_below p A|).
+Proof. { revert A. induction B as [| b]. intros. assert (A=nil). eauto. subst A.
+simpl. omega. intros. assert (In b A \/ ~In b A). eauto. destruct H1.
+{
+simpl. destruct (b <=? p) eqn: Hpa. simpl.
+assert ((| sellers_below p A |)=S((| sellers_below p (delete b A) |))).
+{ eapply sellers_below_delete_S. exact. move /leP in Hpa. exact. } rewrite H2. cut (| sellers_below p B | >= | sellers_below p (delete b A) |).
+omega. assert (delete b A [<=] delete b (b::B)). eapply delete_subset2. exact. exact.
+simpl in H3. destruct (a_eqb b b) eqn:Hbb. apply IHB in H3. exact. eauto.
+ move /eqP in Hbb. destruct Hbb. auto.
+ assert ((| sellers_below p A |)=(| sellers_below p (delete b A) |)).
+{ apply sellers_below_delete. exact. exact.  } rewrite H2.  assert (delete b A [<=] delete b (b::B)). eapply delete_subset2. exact. exact.
+simpl in H3. destruct (a_eqb b b) eqn:Hbb. apply IHB in H3. exact. eauto.
+ move /eqP in Hbb. destruct Hbb. auto. }
+{ assert (A[<=]B). { assert (delete b A [<=] delete b (b::B)). eapply delete_subset2.
+exact. exact. simpl in H2.  destruct (a_eqb b b) eqn: Hbb. assert (A=delete b A).
+eapply delete_intro1. exact. rewrite <- H3 in H2. exact. move /eqP in Hbb. destruct Hbb. auto. } simpl. destruct (b <=? p) eqn: Hpa. simpl.
+cut ((| sellers_below p B |) >= (| sellers_below p A |)). omega. apply IHB. eauto. eauto.
+apply IHB. eauto. eauto. } } Qed.
+
+
+
+
+
+Lemma buyers_above_size 
+(M: list fill_type) (B:list Bid) (A:list Ask) (p:nat):
+(matching_in B A M) -> (|buyers_above p B|) >= (|buyers_above p (bids_of M)|).
+Proof. intros H. destruct H as [H H0]. destruct H0 as [H0 H1]. 
+          destruct H as [H H2]. destruct H2 as [H2 H3].
+          apply buyers_above_bid_size. auto. auto.  Qed.
+          
+
+Lemma sellers_below_size 
+(M: list fill_type) (B:list Bid) (A:list Ask) (p:nat):
+(matching_in B A M) -> (|sellers_below p A|) >= (|sellers_below p (asks_of M)|).
+Proof. intros H. destruct H as [H H0]. destruct H0 as [H0 H1]. 
+          destruct H as [H H2]. destruct H2 as [H2 H3].
+          apply sellers_below_ask_size. auto. auto. auto. Qed.
+
+Theorem bound_on_M
+(M: list fill_type) (B:list Bid) (A:list Ask) (p:nat):
+(matching_in B A M) -> 
+(|(buyers_above p B)|) + (|(sellers_below p A)|) >= |M|.
+Proof. { intros H. apply sellers_below_ge_buyers with (p:=p) in H  as H1b.
+                  eapply buyers_above_ge_sellers with (p:=p) in H as H2a.
+                  eapply buy_below_above_total with (p:=p) in H as H3a.
+                  eapply sell_below_above_total with (p:=p) in H as H3b.
+                  eapply buyers_above_size with (p:=p) in H as H4a.
+                  eapply sellers_below_size with (p:=p) in H as H4b.
+                  omega. } Qed.
+                  

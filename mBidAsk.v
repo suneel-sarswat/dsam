@@ -212,6 +212,87 @@ Hint Resolve bid_prices_elim bid_prices_intro bid_prices_intro1: core.
 Hint Resolve ask_prices_elim ask_prices_intro ask_prices_intro1: core.
 
 
+(* #################### Nodup id -> nodup bid ###################*)
+
+Fixpoint idbs_of (B: list Bid): (list nat):=
+  match B with
+  |nil => nil
+  |b::B' => (idb b)::(idbs_of B')
+  end.
+
+Lemma idbs_of_intro (B: list Bid) (b: Bid):
+  In b B -> (In (idb b) (idbs_of B)).
+Proof. { intro H. induction B. simpl. simpl in H. contradiction.
+         destruct  H. subst b. simpl. left. auto. simpl. right. auto. } Qed.
+
+Lemma idbs_of_elim (B: list Bid): forall i, In i (idbs_of B)->
+                                             exists b, In b B /\ i = idb b.
+Proof. { intros i H. induction B as [|b B']. simpl in H. contradiction. simpl in H.
+       destruct  H as [H1 | H2]. exists b. split; auto.
+       apply IHB' in H2 as H0. destruct H0 as [b0 H0].
+       exists b0. destruct H0. split.
+       eauto. auto. } Qed.
+
+Lemma idbs_of_intro1 (B: list Bid) (B': list Bid):
+  B [<=] B' -> ((idbs_of B)  [<=] (idbs_of B')).
+Proof.  { intro H. intros i. intro H1. assert (H2: exists b, In b B /\ i=(idb b)).
+          apply idbs_of_elim. exact. destruct H2. destruct H0.
+          assert (H3: In x B'). eauto. subst i. eapply idbs_of_intro. exact. } Qed.
+
+
+Lemma idbs_of_nodup (B: list Bid):
+  NoDup (idbs_of B) -> NoDup B.
+  Proof. induction B as [| b B']. simpl. auto.
+  intros. simpl in H. apply nodup_elim2 in H as H1.
+  assert (In b B'\/~In b B'). eauto. destruct H0.
+  assert(In (idb b) (idbs_of B')). apply idbs_of_intro.
+  auto. unfold not in H1. apply H1 in H2. elim H2.
+  apply nodup_intro. auto. assert(NoDup (idbs_of B')).
+  eauto. auto. Qed.
+
+
+(* #################### Nodup id -> nodup Ask ###################*)
+
+Fixpoint idas_of (A: list Ask): (list nat):=
+  match A with
+  |nil => nil
+  |a::A' => (ida a)::(idas_of A')
+  end.
+
+Lemma idas_of_intro (A: list Ask) (a: Ask):
+  In a A -> (In (ida a) (idas_of A)).
+Proof. { intro H. induction A. simpl. simpl in H. contradiction.
+         destruct  H. subst a. simpl. left. auto. simpl. right. auto. } Qed.
+
+Lemma idas_of_elim (A: list Ask): forall i, In i (idas_of A)->
+                                             exists a, In a A /\ i = ida a.
+Proof. { intros i H. induction A as [|a A']. simpl in H. contradiction. simpl in H.
+       destruct  H as [H1 | H2]. exists a. split; auto.
+       apply IHA' in H2 as H0. destruct H0 as [a0 H0].
+       exists a0. destruct H0. split.
+       eauto. auto. } Qed.
+
+Lemma idas_of_intro1 (A: list Ask) (A': list Ask):
+  A [<=] A' -> ((idas_of A)  [<=] (idas_of A')).
+Proof.  { intro H. intros i. intro H1. assert (H2: exists a, In a A /\ i=(ida a)).
+          apply idas_of_elim. exact. destruct H2. destruct H0.
+          assert (H3: In x A'). eauto. subst i. eapply idas_of_intro. exact. } Qed.
+
+
+Lemma idas_of_nodup (A: list Ask):
+  NoDup (idas_of A) -> NoDup A.
+  Proof. induction A as [| a A']. simpl. auto.
+  intros. simpl in H. apply nodup_elim2 in H as H1.
+  assert (In a A'\/~In a A'). eauto. destruct H0.
+  assert(In (ida a) (idas_of A')). apply idas_of_intro.
+  auto. unfold not in H1. apply H1 in H2. elim H2.
+  apply nodup_intro. auto. assert(NoDup (idas_of A')).
+  eauto. auto. Qed.
+  
+Hint Resolve idas_of_nodup idbs_of_nodup idas_of_intro1 idbs_of_intro1: core.
+
+
+
 (* ------------definition of  fill_type as record---------------------------- *)
 
 Record fill_type:Type:=  Mk_fill {
@@ -595,6 +676,8 @@ Proof. { intro H. unfold perm in H. move /andP in H. destruct H.
 
 
 
+
+
       
 Hint Resolve bids_of_intro bids_of_elim asks_of_intro asks_of_elim: core.
 Hint Resolve trade_prices_of_intro trade_prices_of_elim: core.
@@ -606,9 +689,9 @@ Hint Resolve bids_of_elim1 asks_of_elim1: core.
 End BidAsk.
 
 
-(*Definition b0 := {|bp:=0;idb:=0|}.
-Definition a0 := {|sp:=0;ida:=0|}.
-Definition m0 := {|bid_of:=b0;ask_of:=a0;tp:=0|}.*)
+Definition b0 := {|bp:=0;btime:=0;bq:=0;idb:=0;|}.
+Definition a0 := {|sp:=0;stime:=0;sq:=0;ida:=0;|}.
+Definition m0 := {|bid_of:=b0;ask_of:=a0;tq:=0;tp:=0|}.
 
 Hint Resolve b_eqb_ref b_eqP : core.
 Hint Immediate b_eqb_elim b_eqb_intro: core.
@@ -627,6 +710,8 @@ Hint Immediate m_eqb_elim m_eqb_intro: core.
       
 Hint Resolve bids_of_intro bids_of_elim asks_of_intro asks_of_elim: core.
 Hint Resolve trade_prices_of_intro trade_prices_of_elim: core.
+
+Hint Resolve idas_of_nodup idbs_of_nodup idas_of_intro1 idbs_of_intro1: core.
 
 Hint Resolve asks_of_intro1 bids_of_intro1 asks_of_perm bids_of_perm: core.
 

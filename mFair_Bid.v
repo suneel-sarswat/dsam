@@ -43,21 +43,12 @@ Require Export Quantity.
 
 (*Require Export AuctionInvar.*)
 
-Section Fair.
+Section Fair_Bid.
  
 Definition fair_on_bids (M: list fill_type)(B: list Bid):=
   (forall b b', In b B /\ In b' B -> b > b' -> In b' (bids_of M) -> 
   (ttqb M b')>0-> 
   (In b (bids_of M)/\(ttqb M b= bq b))).
-
-Definition fair_on_asks (M: list fill_type) (A: list Ask):=
-  (forall s s', In s A /\ In s' A -> s < s' -> In s' (asks_of M) ->
-  (ttqa M s')>0 -> 
-  (In s (asks_of M)/\(ttqa M s= sq s))).
-
-Definition Is_fair (M: list fill_type) (B: list Bid) (A: list Ask) 
-  :=  fair_on_asks M A /\ fair_on_bids M B.
-
 
 (*##################Sorting Criteria for Bids and Matchings for fair ####################*)
 
@@ -187,6 +178,23 @@ Proof. apply FOB_aux_elim. all: auto.
  }
 }
 Qed.
+
+Lemma FOB_aux_tp_subset (M: list fill_type) (B:list Bid) (t:nat):
+trade_prices_of (FOB_aux M B t) [<=] trade_prices_of M.
+Proof. apply FOB_aux_elim. all: auto.
+{
+ intros. destruct (Nat.eqb (tq f) (bq b -t0)) eqn: Hfb. 
+ { simpl. cut (trade_prices_of (FOB_aux l l0 0) [<=] trade_prices_of l). 
+   auto. move /eqP in Hfb. 
+   assert ((tq f - (bq b - t0)) =0). lia.  exact H. 
+ }
+ { destruct (Nat.leb (tq f) (bq b - t0)) eqn: Hbf. 
+   { simpl. eapply subset_elim2. apply H0. }
+   { simpl. simpl in H1. eapply subset_elim1. exact H1. }
+ }
+}
+Qed.
+
 
 Lemma FOB_subA (M: list fill_type)(B: list Bid): asks_of (FOB M B) [<=] asks_of M.
 Proof. { unfold FOB. apply FOB_aux_asks_subset. } Qed.
@@ -362,10 +370,10 @@ funelim (FOB_aux M B t).
 } Qed.  
     
 
-(*Following lemma (TQ_FM) ensures that if a less competitive bid is part of FOB_aux then 
+(*Following lemma (FOB_QM_ge_bqb) ensures that if a less competitive bid is part of FOB_aux then 
 the total quantity traded in the matching should be more that or equal to more competitive bid*)
 
-Lemma TQ_FM (M: list fill_type)(B:list Bid)(b1 b2:Bid)(t:nat)
+Lemma FOB_QM_ge_bqb (M: list fill_type)(B:list Bid)(b1 b2:Bid)(t:nat)
 (NZT:(forall m, In m M -> (tq m) > 0) )(NDB:NoDup B):
 Sorted by_dbp B ->  b1>b2 -> 
 In b1 (bids_of (FOB_aux M B t)) -> In b2 (bids_of (FOB_aux M B t))
@@ -449,7 +457,7 @@ Proof.
 funelim (FOB_aux M (b::B) t). auto. 
 { intros. destruct (b_eqb b1 b ) eqn: Hbb1. 
   { move /eqP in Hbb1. subst b. split.
-    intros. eapply FOB_aux_top_bid_fair. auto. auto. eapply TQ_FM in H5. 
+    intros. eapply FOB_aux_top_bid_fair. auto. auto. eapply FOB_QM_ge_bqb in H5. 
     all: try (simpl;lia);auto;eauto.  
   }
   { split;intros. 
@@ -474,7 +482,8 @@ funelim (FOB_aux M (b::B) t). auto.
              { rewrite FOB_aux_triv in H4. simpl in H4. auto. }
              { destruct (b_eqb b1 b0) eqn: Hbb0. 
                   { move /eqP in Hbb0. subst b0. eapply FOB_aux_top_bid_fair0.
-                    auto. eauto. eapply TQ_FM with (b1:=b1)(B:=(b1::B'))(b2:=b2) in H5.
+                    auto. eauto. eapply FOB_QM_ge_bqb with (b1:=b1)(B:=(b1::B'))
+                    (b2:=b2) in H5.
                     lia. auto. eauto. eauto. all:exact. }
                   { eapply H. auto. eauto. auto. auto. eauto. eauto. 
                     exact. exact. move /eqP in Hbb0. exact. } 
@@ -524,7 +533,7 @@ funelim (FOB_aux M (b::B) t). auto.
             { destruct (b_eqb b1 b0) eqn: Hbb0. 
               { move /eqP in Hbb0. subst b0. eapply FOB_aux_top_bid_fair0.
                 simpl. intros. destruct H7. subst m. simpl. lia. auto. eauto. 
-                simpl. eapply TQ_FM with (b1:=b1)(B:=(b1::B'))(b2:=b2) in H4 . 
+                simpl. eapply FOB_QM_ge_bqb with (b1:=b1)(B:=(b1::B'))(b2:=b2) in H4 . 
                 simpl in H4. lia. intros. destruct H7. subst m. simpl. lia. auto.
                 eauto. eauto. all:exact. 
               }
@@ -739,6 +748,220 @@ case B eqn:HB. rewrite FOB_aux_triv. auto. intros.
 eapply FOB_aux_matchable_t with (t:=0)(b:=b)(B:=l).
 all: auto. eauto. specialize (H3 b);lia. Qed.
 
+
+
+(*################################################################################*)
+
+(*Lemmas: IR in FOB *)
+
+(*################################################################################*)
+
+Lemma FOB_aux_IR (M: list fill_type)(B:list Bid)(b:Bid)(t:nat)
+(NZT:(forall m, In m M -> (tq m) > 0) )(NDB:NoDup B) 
+(Hanti: antisymmetric by_dbp):
+Sorted by_dbp (b::B) -> 
+Sorted m_dbp M -> 
+Is_IR M -> 
+(bids_of M) [<=] (b::B) ->
+(forall b0, ttqb M b0 <= bq b0) -> 
+(ttqb M b <= bq b - t) ->  
+Is_IR (FOB_aux M (b::B) t).
+
+Proof. { funelim ((FOB_aux M (b::B) t)).
++ intros. simp FOB_aux. 
++ unfold Is_IR. intros. 
+destruct (Nat.eqb (tq f) (bq b - t)) eqn: Heq. (*EQ case*)
+   { rewrite <- Heqcall in H8.
+     simpl in H8. destruct H8.  
+      { subst m. unfold rational.
+        simpl. assert (In (bid_of f) (b::l0)). (*EQ: Base case *)
+        apply H5. simpl. left. auto. assert (In f (f::l)). auto. 
+        specialize (H4 f). apply H4 in H9. assert (bid_of f <= b).  
+        eapply Sorted_elim2 with (x:=bid_of f) in H2. unfold by_dbp in H2.
+        move /orP in H2. destruct H2.
+        { move /leP in H2. exact. }
+        { move /andP in H2. destruct H2. move /eqP in H2. lia. }
+        auto. exact. unfold rational in H9. lia. }
+      { case l0 as [|b0 B'] eqn: HB. (*EQ: IH case*)
+        { rewrite FOB_aux_triv in H8. inversion H8. } 
+        { revert H8.
+          eapply H. 
+          { auto. } 
+          { eauto. } 
+          { auto. } 
+          { auto. }
+          { auto. }
+          { eauto. }
+          { eauto. } 
+          { eauto. }
+          { move /eqP in Heq. simpl in H7. 
+            destruct (b_eqb b (bid_of f)) eqn: Hbm.
+            { assert (ttqb l b = 0). lia. 
+              assert(~In b (bids_of l)).
+              eapply ttqb_intro in H8. auto. auto.
+              revert H5. unfold "[<=]". intros. simpl in H5. 
+              specialize (H5 a). destruct H5. right. auto.
+              subst a. elim H9. auto. simpl. auto. 
+            } 
+            { move /eqP in Hbm. assert (In b (bids_of l) 
+             \/ ~In b (bids_of l)). eauto.
+             destruct H8. 
+             { simpl in H5. 
+               eapply Sorted_subset with (a1:=(bid_of f))(a2:=b)
+               (l2:=(b0::B'))(l1:=(bids_of l))(lr:=by_dbp) in H5.
+               assert (b=(bid_of f)). apply Hanti. apply /andP.
+               destruct H5. auto.
+               subst b. elim Hbm.
+               auto. apply by_dbp_P. apply by_dbp_refl. 
+               eapply m_dbp_and_by_dbp in H3. simpl in H3;auto. auto. 
+               simpl. right;auto. }
+             { simpl in H5. 
+               eapply Subset_elim with (a1:=(bid_of f))(a2:=b)(l2:=(b0::B'))
+               in H5. eauto. eauto. } 
+            } 
+          }
+         { simpl in H6. intros. specialize (H6 b1). 
+           destruct (b_eqb b1 (bid_of f)).
+           lia. lia. 
+         }
+         { simpl in H6. specialize (H6 b0). destruct (b_eqb b0 (bid_of f)).
+           lia. lia. 
+         } 
+       }
+     }
+   }
+   { rewrite <- Heqcall in H8. 
+     destruct (Nat.leb (tq f) (bq b - t)) eqn: Hle. 
+     { simpl in H8. destruct H8.    (*LT case*)  
+        { subst m. simpl. assert (In (bid_of f) (b::l0)). (*LT: Base case*)
+          apply H5. simpl. left. auto. assert (In f (f::l)). auto. 
+          specialize (H4 f). apply H4 in H9. assert (bid_of f <= b).  
+          eapply Sorted_elim2 with (x:=bid_of f) in H2. unfold by_dbp in H2.
+          move /orP in H2. destruct H2.
+          { move /leP in H2. exact. }
+          { move /andP in H2. destruct H2. move /eqP in H2. lia. }
+          auto. exact. unfold rational in H9. unfold rational. simpl. lia. 
+        }
+        (*LT: IH case*)
+        { eapply H0. 
+          all: try auto; eauto.
+          intros.
+          specialize (H6 b0). simpl in H6. destruct (b_eqb b0 (bid_of f)). 
+          lia. lia. simpl in H7. 
+          destruct (b_eqb b (bid_of f)) eqn: Hbm. 
+          { move /leP in Hle.  lia. }
+          { move /eqP in Hbm. 
+            assert (In b (bids_of l) \/ ~In b (bids_of l)).
+            eauto. destruct H9. 
+            { simpl in H5. 
+              eapply Sorted_subset with (a1:=(bid_of f))(a2:=b)
+              (l2:=(l0))(l1:=(bids_of l))(lr:=by_dbp) in H5.
+              assert (b=(bid_of f)). apply Hanti. apply /andP.
+              destruct H5. auto. subst b. elim Hbm.
+              auto. apply by_dbp_P. apply by_dbp_refl. 
+              eapply m_dbp_and_by_dbp in H3. simpl;auto. auto. 
+              simpl. right;auto. 
+            }
+            { eapply  ttqb_elim in H9. lia. } 
+          } 
+        }
+      }
+      { simpl in H8. destruct H8.  
+      (*GT case*) 
+        { subst m. simpl. assert (In (bid_of f) (b::l0)). (*GT: Base case*)
+          apply H5. simpl. left. auto. assert (In f (f::l)). auto. 
+          specialize (H4 f). apply H4 in H9. assert (bid_of f <= b).  
+          eapply Sorted_elim2 with (x:=bid_of f) in H2. 
+          unfold by_dbp in H2.
+          move /orP in H2. destruct H2.
+          { move /leP in H2. exact. }
+          { move /andP in H2. destruct H2. move /eqP in H2. lia. }
+          auto. exact. unfold rational in H9. unfold rational. simpl. lia. 
+        }
+        { case l0 as [|b0 B'] eqn: HB.  (*GT: IH case*)
+          { rewrite FOB_aux_triv in H8. inversion H8. }
+          { eapply H1 in H8. 
+            all: try auto.
+            { simpl. intros. destruct H9. subst m0.
+            simpl. move /leP in Hle. lia. auto. }
+            { eauto. }
+            { eauto. } 
+            { revert H3. constructor. eauto. intros.  simpl. 
+            eapply Sorted_elim2  with (x0:=x) in H3. unfold m_dbp in H3.
+            unfold m_dbp. simpl. exact. eauto. eauto. } 
+            { unfold Is_IR. simpl. intros.
+            destruct H9. 
+              { subst m0. simpl. unfold rational. 
+              eauto. eauto. simpl. apply H4. auto. }  
+              { apply H4. eauto. }
+            }
+            { simpl. move /leP in Hle. simpl in H7. 
+            destruct (b_eqb b (bid_of f)) eqn: Hbm.
+            move /eqP in Heq. lia. move /eqP in Hbm. 
+            assert (In b (bids_of l) \/ ~In b (bids_of l)). eauto.
+            destruct H9. 
+            { simpl in H5. 
+              eapply Sorted_subset with (a1:=(bid_of f))(a2:=b)
+              (l2:=(b0::B'))(l1:=(bids_of l))(lr:=by_dbp) in H5.
+              assert (b=(bid_of f)). apply Hanti. apply /andP.
+              destruct H5. auto. subst b. elim Hbm.
+              auto. apply by_dbp_P. apply by_dbp_refl. 
+              eapply m_dbp_and_by_dbp in H3. simpl;auto. auto. 
+              simpl. right;auto. 
+            }
+            { simpl in H5.
+              eapply Subset_elim0 with (a1:=(bid_of f))(a2:=b)
+              (l2:=(b0::B')) in H5. auto. auto. auto. 
+            } 
+           }
+           { simpl. intros. simpl in H6. specialize (H6 b1). 
+             destruct (b_eqb b1 (bid_of f)).
+           lia. exact H6. 
+           }
+           { simpl.  specialize (H6 b0). simpl in H6.
+           destruct (b_eqb b0 (bid_of f)). lia. lia. 
+         } 
+       } 
+     }
+  }
+} }
+Qed.
+
+
+Lemma FOB_IR (M: list fill_type)(B:list Bid)
+(NZT:(forall m, In m M -> (tq m) > 0) )
+(NDB:NoDup B) (Hanti: antisymmetric by_dbp):
+Sorted by_dbp B -> 
+Sorted m_dbp M -> 
+Is_IR M -> 
+(bids_of M) [<=] B ->
+(forall b0, ttqb M b0 <= bq b0) -> 
+Is_IR (FOB M B).
+Proof. unfold FOB. intros. 
+case B eqn:HB. rewrite FOB_aux_triv. 
+unfold Is_IR. intros. elim H4. unfold Is_IR. intros.
+eapply FOB_aux_IR with (t:=0)(b:=b)(B:=l) in H4.
+all: auto. eauto. specialize (H3 b);lia. Qed.
+
+
+
+(*####################################################################*)
+
+(*Uniform FOA*)
+
+(*####################################################################*)
+
+Lemma FOB_uniform (M:list fill_type)(B: list Bid):
+Uniform M -> Uniform (FOB M B).
+Proof. unfold Uniform. intros.
+assert(trade_prices_of (FOB M B) [<=] trade_prices_of M).
+apply FOB_aux_tp_subset. eauto. Qed.
+
+
+
+
+
+
 (*####################################################################*)
 
 (*Corrolary: Total traded quantity of FOB M B is same as M *)
@@ -765,6 +988,23 @@ apply FOB_subA. eauto. Qed.
 
  
 
+(*####################Used in compositions #########################*)
+
+Lemma FOB_asks_M_subset_asks_FOB (M: list fill_type)(B:list Bid)(NDB:NoDup B)
+(NZT: forall m : fill_type, In m M -> tq m > 0): 
+(forall b : Bid, In b (bids_of M) -> ttqb M b <= bq b) ->
+bids_of M [<=]B ->
+asks_of M [<=] asks_of (FOB M B).
+Proof. 
+unfold FOB. intros. 
+assert(QB B>=QM M).
+rewrite <- QM_equal_QMb with (B:=B).
+eapply fill_size_vs_bid_size.
+all:auto. intros. eauto.
+apply ttqa_equal_implies_subet. auto.
+intros.
+apply FOB_asks_invariant with (M:=M)(B:=B). auto. lia.
+Qed.
 
 
 
@@ -926,72 +1166,232 @@ Proof.
      assert((In a (asks_of M))\/~In a (asks_of M)). 
      eauto. destruct H5. apply H3 in H5. auto.
      apply ttqa_elim in H5. lia. Qed.
- 
+     
+(******************FOB_NZT*************************)
 
+Lemma FOB_aux_NZT (M: list fill_type)(B:list Bid)(t:nat)(b:Bid)
+(NZT:(forall m, In m M -> (tq m) > 0))(NDB:NoDup (b::B))
+(NZB:(forall b0, In b0 (b::B) -> (bq b0) > 0))
+:
+(bq b) > t-> (forall m, In m (FOB_aux M (b::B) t) -> (tq m) > 0).
+Proof. { funelim ((FOB_aux M (b::B) t)).
++ intros. simp FOB_aux in H0. 
++ intros. rewrite <- Heqcall in H3. 
+destruct (Nat.eqb (tq f) (bq b - t)) eqn: Heq.
+{ simpl in H3. destruct H3. subst m. simpl. lia.
+  case l0 as [|b0 B'] eqn:Hl0. rewrite FOB_aux_triv in H3. 
+  elim H3. apply H in H3. all:auto. eauto.
+}
+{ destruct (Nat.leb (tq f) (bq b - t)) eqn: Hle.
+  { simpl in H3. destruct H3. subst m. simpl. apply NZT.
+    auto. apply H0 in H3. all:auto. move /leP in Hle.
+    move /eqP in Heq.
+    lia.
+  }
+{ simpl in H3. destruct H3. subst m. simpl. lia.
+  case l0 as [|b0 B'] eqn:Hl0. rewrite FOB_aux_triv in H3. 
+  elim H3. apply H1 in H3. all:auto.
+  intros. simpl in H4. destruct H4. 
+  subst m0. simpl. move /leP in Hle.
+    move /eqP in Heq.
+    lia. eauto. eauto.
+} } } Qed.
+
+Lemma FOB_NZT (M: list fill_type)(B:list Bid)
+(NZT:(forall m, In m M -> (tq m) > 0))(NDB:NoDup B)
+(NZB:(forall b0, In b0 B -> (bq b0) > 0))
+:
+(forall m, In m (FOB M B) -> (tq m) > 0).
+Proof. unfold FOB. induction B. rewrite FOB_aux_triv.
+       simpl. intros. elim H.
+       apply FOB_aux_NZT. auto. eauto. eauto. auto. Qed.
+
+(*#############END:NZT FOB######################*)
+
+
+Lemma ttqb_incl (M M': list fill_type) (b:Bid):
+included M M'  -> ttqb M b <= ttqb M' b.
+Proof. revert M. induction M' as [ |m M0]. intros. 
+       assert(M = nil). eauto. subst. simpl. lia.
+       intros. 
+       destruct (b_eqb b (bid_of m)) eqn: Hbm.
+       {
+       replace (m_eqb m m) with true. simpl. rewrite Hbm.
+       replace (m_eqb m m) with true. 
+       assert(In m M\/~In m M). eauto.
+       destruct H0. apply ttqb_delete_m_ofb with (b:=b) in H0.
+       rewrite H0. cut(ttqb (delete m M) b <=ttqb M0 b).
+       lia. eapply IHM0. 
+       assert(included (delete m M) M0). 
+       eapply included_elim3a with (a:=m) in H.
+       simpl in H. replace (m_eqb m m) with true in H. auto.
+       eauto.
+       auto. move /eqP in Hbm. auto. 
+       assert(included M M0). 
+       eapply included_elim3b in H. auto. auto.
+       apply IHM0 in H1. lia. eauto. eauto. }
+       { simpl. rewrite Hbm.
+       replace (m_eqb m m) with true. 
+       assert(In m M\/~In m M). eauto.
+       destruct H0. apply ttqb_delete_m_not_ofb with (b:=b) in H0.
+       rewrite H0.
+       eapply IHM0. 
+       assert(included (delete m M) M0). 
+        eapply included_elim3a with (a:=m) in H.
+       simpl in H. replace (m_eqb m m) with true in H. auto.
+       eauto.
+       auto. move /eqP in Hbm. auto. 
+       assert(included M M0).  eapply included_elim3b in H. auto. auto.
+       apply IHM0 in H1. lia. eauto.
+} Qed.
+Lemma ttqb_inv (M M': list fill_type) (b:Bid):
+perm M M'  -> ttqb M b = ttqb M' b.
+Proof. intros. unfold perm in H. move /andP in H.
+destruct H. apply ttqb_incl with (b:=b) in H.
+apply ttqb_incl with (b:=b) in H0. lia. Qed.
+     
+Lemma ttqa_incl (M M': list fill_type) (a:Ask):
+included M M'  -> ttqa M a <= ttqa M' a.
+Proof. revert M. induction M' as [ |m M0]. intros. 
+       assert(M = nil). eauto. subst. simpl. lia.
+       intros. 
+       destruct (a_eqb a (ask_of m)) eqn: Hbm.
+       {
+       replace (m_eqb m m) with true. simpl. rewrite Hbm.
+       replace (m_eqb m m) with true. 
+       assert(In m M\/~In m M). eauto.
+       destruct H0. apply ttqa_delete_m_ofa with (a:=a) in H0.
+       rewrite H0. cut(ttqa (delete m M) a <=ttqa M0 a).
+       lia. eapply IHM0. 
+       assert(included (delete m M) M0). 
+       eapply included_elim3a with (a0:=m) in H.
+       simpl in H. replace (m_eqb m m) with true in H. auto.
+       eauto.
+       auto. move /eqP in Hbm. auto. 
+       assert(included M M0).
+        eapply included_elim3b in H. auto. auto.
+       apply IHM0 in H1. lia. eauto. eauto. }
+       { simpl. rewrite Hbm.
+       replace (m_eqb m m) with true. 
+       assert(In m M\/~In m M). eauto.
+       destruct H0. apply ttqa_delete_m_not_ofa with (a:=a) in H0.
+       rewrite H0.
+       eapply IHM0. 
+       assert(included (delete m M) M0). 
+       eapply included_elim3a with (a0:=m) in H.
+       simpl in H. replace (m_eqb m m) with true in H. auto.
+       eauto.       auto. move /eqP in Hbm. auto. 
+       assert(included M M0).
+        eapply included_elim3b in H. auto. auto.
+       apply IHM0 in H1. lia. eauto.
+} Qed.
+
+Lemma ttqa_inv (M M': list fill_type) (a:Ask):
+perm M M'  -> ttqa M a = ttqa M' a.
+Proof. intros. unfold perm in H. move /andP in H.
+destruct H. apply ttqa_incl with (a:=a) in H.
+apply ttqa_incl with (a:=a) in H0. lia. Qed.
+
+
+
+Lemma match_inv (M M': list fill_type) (B B': list Bid) (A A' : list Ask):
+perm M  M' -> perm B B' -> perm A A' -> matching_in B A M -> matching_in B' A' M'.
+Proof. { intros. destruct H2. destruct H3. destruct H2. destruct H5.
+ unfold matching_in. unfold matching.
+ assert(perm (bids_of M') (bids_of M)).
+ { eapply bids_of_perm in H. auto. }
+ assert(perm (asks_of M') (asks_of M)).
+ {  eapply asks_of_perm in H. auto. }
+ split. { split. {
+ unfold All_matchable. unfold All_matchable in H2. 
+ unfold perm in H. move /andP in H. destruct H. eapply included_elim5 in H9.
+ eauto. } split. 
+  {intros. eapply ttqb_inv with (b:=b) in H as Ha. rewrite <- Ha.
+   assert(In b (bids_of M)\/~In b (bids_of M)). eauto.
+   destruct H10. apply H5. auto. apply ttqb_elim in H10. lia. }
+  {intros. eapply ttqa_inv with (a:=a) in H as Ha. rewrite <- Ha.
+   assert(In a (asks_of M)\/~In a (asks_of M)). eauto.
+   destruct H10. apply H6. auto. apply ttqa_elim in H10. lia. } }
+   split. assert(B [<=] B'). eapply perm_subset in H0. eauto. eauto. eauto.
+   eauto. assert(A [<=] A'). eapply perm_subset in H1. eauto. eauto. eauto. eauto.
+   } Qed.
+ 
+ 
 (*Lemma: FOB is matching*)
 Lemma FOB_matching (M: list fill_type)(B: list Bid)(A:list Ask)
 (NDA:NoDup A)(NDB:NoDup B) (NZT:(forall m, In m M -> (tq m) > 0))
 (Hanti: antisymmetric by_dbp): 
-Sorted by_dbp B ->
-Sorted m_dbp M ->
 matching_in B A M -> 
-matching_in B A (FOB M B).
+matching_in B A (FOB (sort m_dbp M) (sort by_dbp B)).
 Proof. unfold matching_in. unfold matching.
-       intros. split.
+       intros. assert(bids_of M [<=] B /\ asks_of M [<=] A).
+           apply H. destruct H0. 
+           
+           split.
        { split.
-         { apply FOB_matchable. all:auto.
-           all: try apply H1.
-           intros. assert((In b0 (bids_of M))\/~In b0 (bids_of M)).
-           eauto. destruct H2. destruct H1. destruct H1. destruct H4.
-           specialize (H4 b0). apply H4 in H2. auto.
-           apply ttqb_elim in H2. lia. 
+         { apply FOB_matchable. intros. 
+           assert(In m M). eapply sort_elim. eauto. auto. eauto.
+           auto. eapply sort_correct. apply by_dbp_P.
+           apply by_dbp_P. eapply sort_correct. apply m_dbp_P.
+           apply m_dbp_P. eauto. eauto. intros. 
+           assert(ttqb (sort m_dbp M) b0 = ttqb M b0).
+           eapply ttqb_inv. eauto. rewrite H2.
+           assert(In b0 (bids_of M)\/~In b0 (bids_of M)). eauto.
+           destruct H3. apply H. auto. apply ttqb_elim in H3. lia.
          }
          split.
-         { intros. apply FOB_ttqb with (A:=A).
-           eauto. eauto.
+         {
+          intros. apply FOB_ttqb with (A:=A).
+           eauto. assert(perm M (sort m_dbp M) ). eauto.
+           assert(perm B (sort by_dbp B)). eauto.
+           eapply match_inv with (B':=(sort by_dbp B)) (M':=(sort m_dbp M))(A':=A) in H3.
+           auto. eauto. eauto. apply H.
          }
          {
-           intros. apply FOB_ttqa with (A:=A).
-           eauto. eauto. auto. eauto.
-         }
-      }
+          intros. apply FOB_ttqa with (A:=A).
+           eauto. eauto. intros. assert(In m M). eapply sort_elim. eauto. auto. 
+           assert(perm M (sort m_dbp M) ). eauto.
+           assert(perm B (sort by_dbp B)). eauto.
+           eapply match_inv with (B':=(sort by_dbp B)) (M':=(sort m_dbp M))(A':=A) in H3.
+           auto. eauto. eauto. apply H.
+         } }
       {
-      split. apply FOB_subB. assert((asks_of (FOB M B)) [<=] (asks_of M)).
-      eapply FOB_subA. destruct H1. destruct H1.  destruct H3.
-      eauto. 
+      split. assert(bids_of (FOB (sort m_dbp M) (sort by_dbp B))[<=](sort by_dbp B)). 
+      eapply FOB_subB. eauto.
+      assert(asks_of (FOB (sort m_dbp M) (sort by_dbp B))[<=](asks_of (sort m_dbp M))).
+      eapply FOB_subA. eauto. 
       }
 Qed.
          
 Theorem FOB_exists_and_correct (M: list fill_type)(B: list Bid)(A:list Ask)
 (NDA:NoDup A)(NDB:NoDup B)(NZT:(forall m, In m M -> (tq m) > 0))
 (Hanti: antisymmetric by_dbp): 
-Sorted by_dbp B ->
-Sorted m_dbp M ->
 matching_in B A M ->
 (exists M', (matching_in B A M')/\(fair_on_bids M' B)/\(QM(M) = QM(M'))).
-Proof. exists (FOB M B).
+Proof. exists (FOB (sort m_dbp M) (sort by_dbp B)).
 split. 
      { apply FOB_matching. all:auto. }
-split.
+split. 
      { unfold fair_on_bids. intros.
-       assert(Hb:In b (bids_of (FOB M B))). 
+       assert(Hb:In b (bids_of (FOB (sort m_dbp M) (sort by_dbp B)))). 
        eapply FOB_aux_more_competative_in.
-       all:auto. eauto. apply H2. apply H2.
-       exact.
+       all:auto. eauto.  eapply sort_correct. apply by_dbp_P.
+       apply by_dbp_P. eauto. destruct H0. eapply sort_intro in H0.  eauto.
+       destruct H0. eapply sort_intro in H4.  eauto.
+       eauto. 
        split.
-       auto. eapply FOB_bids_fair. all:auto. eauto. auto.
+       auto. eapply FOB_bids_fair. all:auto. intros. assert(In m M). 
+       eauto.  auto.
+       eapply sort_correct. apply by_dbp_P.
+       apply by_dbp_P. eauto. destruct H0. eapply sort_intro with (lr:=by_dbp) in H4.
+         eauto.
      }
-     eapply FOB_size.
-     all:eauto.  
+     assert(QM(sort m_dbp M) = QM(M)). eauto. rewrite <- H0. eapply FOB_size.
+     all:eauto. eapply match_inv with (B':=(sort by_dbp B))(M':=(sort m_dbp M)) in H.
+     eauto. eauto. eauto. auto.
 Qed.
-End Fair.
 
-Require Extraction.
-Extraction  Language Scheme.
-Recursive Extraction FOB.
-Extraction  Language Haskell.
-Recursive Extraction FOB.
-Extraction  Language OCaml.
-Recursive Extraction FOB.
 
+
+End Fair_Bid.
 

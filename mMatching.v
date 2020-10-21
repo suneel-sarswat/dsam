@@ -232,7 +232,10 @@ Proof. { intros H. unfold matching in H. destruct H. destruct H0.
          unfold matching. split. 
          { eauto. }
          split.
-         {  intros. admit. }
+         {  intros. assert(In b (bids_of M)\/~In b (bids_of M)).
+            eauto. destruct H3. apply H0 in H3. 
+            admit. (*write rewrite ttqb_delete*)
+            apply ttqb_elim in H3. admit. }
          { intros. admit. } } Admitted.
 (*
 Lemma matching_elim10 (m: fill_type) (M: list fill_type): matching M -> In m M ->
@@ -357,10 +360,41 @@ Proof. { unfold matching_in. intros. destruct H. destruct H0. split. eauto. spli
           { admit. } } Admitted.
   
 
-Hint Resolve matching_in_elim4a matching_in_elim5a: core. 
+Lemma matching_in_elim9b (M:list fill_type)(b:Bid)(a:Ask)(B:list Bid)(A:list Ask): 
+matching_in B A M -> ttq_ab M b a <= bq b.
+Proof. intros. destruct H. destruct H. destruct H1. 
+assert(H3:In b (bids_of M)\/~In b (bids_of M)).
+eauto. destruct H3.
+specialize (H1 b). apply H1 in H3.
+assert(H4: ttq_ab M b a <= ttqb M b).
+eauto.
+lia. 
+eapply ttq_ab_elim_b with (a:=a) in H3. lia. Qed.
+
+
+Lemma matching_in_elim9a (M:list fill_type)(b:Bid)(a:Ask)(B:list Bid)(A:list Ask): 
+matching_in B A M -> ttq_ab M b a <= sq a.
+Proof. intros. destruct H. destruct H. destruct H1. 
+assert(H3:In a (asks_of M)\/~In a (asks_of M)).
+eauto. destruct H3.
+specialize (H2 a). apply H2 in H3.
+assert(H4: ttq_ab M b a <= ttqa M a).
+eauto.
+lia.
+eapply ttq_ab_elim_a with (b:=b) in H3. lia.
+Qed.
+ 
+Lemma matching_in_elim9 (M:list fill_type)(b:Bid)(a:Ask)(B:list Bid)(A:list Ask): 
+matching_in B A M -> ttq_ab M b a <= min (bq b) (sq a).
+Proof. intro H. 
+apply matching_in_elim9a with (b:=b)(a:=a) in H as Ha. 
+apply matching_in_elim9b with (b:=b)(a:=a) in H as Hb.
+lia. Qed. 
+ 
+Hint Resolve matching_in_elim4a matching_in_elim5a matching_in_elim9: core. 
 (*Hint Immediate matching_in_intro: auction.*)
 Hint Resolve matching_in_elim0 matching_in_elim matching_in_elim1 (*matching_in_elim2
-     matching_in_elim3 *) matching_in_elim4 matching_in_elim5 : auction.
+     matching_in_elim3 *) matching_in_elim4 matching_in_elim5 : core.
 
 Hint Resolve matching_in_elim6 matching_in_elim7 matching_in_elim7a  matching_in_elim8: core.
 
@@ -545,99 +579,6 @@ Proof. { unfold sellers_below. intros H.
             apply IHA in H. exact. }
             { apply IHA in H. exact. }}} Qed.
 
-Hint Resolve buyers_above_elim buyers_above_intro: auction.
-Hint Resolve sellers_above_elim sellers_above_intro: auction.
-
-Hint Resolve buyers_below_elim buyers_below_intro: auction.
-Hint Resolve sellers_below_elim sellers_below_intro: auction.
-
-
-Theorem buyers_above_ge_sellers (p:nat)(M: list fill_type) (B: list Bid) (A: list Ask):
-  matching_in B A M -> | buyers_above p (bids_of M)| >= | sellers_above p (asks_of M)|.
- Proof. { intros H. destruct H as [H H0]. destruct H0 as [H0 H1]. 
-          destruct H as [H H2]. destruct H2 as [H2 H3].
-          induction M. 
-          { simpl. auto. }
-          { simpl.  
-            destruct (Nat.leb p (bid_of a)) eqn: Hpb.
-            { destruct (Nat.leb p (ask_of a)) eqn: Hpa.
-              { simpl. cut ((| buyers_above p (bids_of M) |) >= (| sellers_above p (asks_of M) |)). 
-            lia. apply IHM. all:eauto. admit. admit. }
-              { simpl. cut ((| buyers_above p (bids_of M) |) >= (| sellers_above p (asks_of M) |)). 
-            lia. apply IHM. all:eauto. admit. admit. } }
-            { destruct (Nat.leb p (ask_of a)) eqn: Hpa.
-              { move /leP in Hpb. move /leP in Hpa. 
-                unfold All_matchable in H. assert (H4: (ask_of a <= bid_of a)). 
-                apply H. auto. lia. }
-              { apply IHM. all: eauto. admit. admit. }}}} Admitted.
-
-Theorem sellers_below_ge_buyers (p:nat)(M: list fill_type) (B: list Bid) (A: list Ask):
-  matching_in B A M -> | buyers_below p (bids_of M)| <= | sellers_below p (asks_of M)|.
-Proof. { intros H. destruct H as [H H0]. destruct H0 as [H0 H1]. 
-          destruct H as [H H2]. destruct H2 as [H2 H3].
-          induction M. 
-          { simpl. auto. }
-          { simpl.  
-            destruct (Nat.leb (bid_of a) p) eqn: Hpb.
-            { destruct (Nat.leb (ask_of a) p) eqn: Hpa.
-              { simpl. cut ((| buyers_below p (bids_of M) |) <= (| sellers_below p (asks_of M) |)). 
-            lia. apply IHM. all:eauto. admit. admit. }
-              { move /leP in Hpb. move /leP in Hpa. 
-                unfold All_matchable in H. 
-                assert (H4: (ask_of a <= bid_of a)). 
-                apply H. auto. lia. } }
-            { destruct (Nat.leb (ask_of a) p) eqn: Hpa.
-              { simpl. cut ((| buyers_below p (bids_of M) |) <= (| sellers_below p (asks_of M) |)). 
-            lia. apply IHM. all:eauto. admit. admit.
-              }
-              { apply IHM. all: eauto. admit. admit. }}}} Admitted.
-
-
-Lemma matchable_buy_above_sell_below (b:Bid) (a: Ask) (B: list Bid) (A: list Ask) (p:nat): In b (buyers_above p B) -> In a (sellers_below p A)
--> a<=b.
-Proof. intros. apply  buyers_above_elim in H. apply sellers_below_elim in H0. lia. Qed. 
-
-Lemma buy_below_above_total (M: list fill_type) (B:list Bid) (A:list Ask) (p:nat):
-(matching_in B A M) -> (|(buyers_above p (bids_of M))|) + (|(buyers_below p (bids_of M))|) >= |M|.
-Proof. { intros H. destruct H as [H H0]. destruct H0 as [H0 H1]. 
-          destruct H as [H H2]. destruct H2 as [H2 H3].
-          induction M. { simpl. auto. }
-           { simpl.  
-            destruct (Nat.leb p (bid_of a)) eqn: Hpb.
-            { destruct (Nat.leb (bid_of a) p) eqn: Hpa.
-            { simpl. cut ((| buyers_above p (bids_of M) |) + (| buyers_below p (bids_of M) |) >= |M|). 
-            lia. apply IHM. all:eauto. admit. admit. }
-            { simpl. cut ((| buyers_above p (bids_of M) |) + (| buyers_below p (bids_of M) |) >= |M|). 
-            lia. apply IHM. all:eauto. admit. admit. } }
-            { destruct (Nat.leb (bid_of a) p) eqn: Hpa.
-            { simpl. cut ((| buyers_above p (bids_of M) |) + (| buyers_below p (bids_of M) |) >= |M|). lia. apply IHM. all:eauto. admit. admit. }
-            { move /leP in Hpb. move /leP in Hpa. lia. } }}} Admitted.
-            
-Lemma sell_below_above_total (M: list fill_type) (B:list Bid) (A:list Ask) (p:nat):
-(matching_in B A M) -> (|(sellers_above p (asks_of M))|) + (|(sellers_below p (asks_of M))|) >= |M|.
-Proof. { intros H. destruct H as [H H0]. destruct H0 as [H0 H1]. 
-          destruct H as [H H2]. destruct H2 as [H2 H3].
-          induction M. { simpl. auto. }
-           { simpl.  
-            destruct (Nat.leb p (ask_of a)) eqn: Hpb.
-            { destruct (Nat.leb (ask_of a) p) eqn: Hpa.
-            { simpl. cut ((|(sellers_above p (asks_of M))|) + (|(sellers_below p (asks_of M))|) >= |M|). 
-            lia. apply IHM. all:eauto. admit. admit. }
-            { simpl. cut ((|(sellers_above p (asks_of M))|) + (|(sellers_below p (asks_of M))|) >= |M|). 
-            lia. apply IHM. all:eauto. admit. admit. } }
-            { destruct (Nat.leb (ask_of a) p) eqn: Hpa.
-            { simpl. cut ((|(sellers_above p (asks_of M))|) + (|(sellers_below p (asks_of M))|) >= |M|). lia. apply IHM. all:eauto. admit. admit. }
-            { move /leP in Hpb. move /leP in Hpa. lia. } }}} Admitted.
-
-
-Lemma maching_buyer_right_plus_seller_left 
-(M: list fill_type) (B:list Bid) (A:list Ask) (p:nat):
-(matching_in B A M) -> (|(buyers_above p (bids_of M))|) + (|(sellers_below p (asks_of M))|) >= |M|.
-Proof.  intros H. apply sellers_below_ge_buyers with (p:=p) in H  as H1.
-                  eapply buyers_above_ge_sellers with (p:=p) in H as H2.
-                  eapply buy_below_above_total with (p:=p) in H as H3.
-                  eapply sell_below_above_total with (p:=p) in H as H4.
-                  lia. Qed.
 
 Lemma matching_size_bids (M:list fill_type)(A:list Ask)(B:list Bid)(NDB:NoDup B):
 matching_in B A M -> QM(M) <= QB(B). 
@@ -666,7 +607,8 @@ Hint Resolve nill_is_matching: core.
 Hint Resolve matching_in_elim0 matching_in_elim matching_in_elim1: core.
 Hint Resolve (*matching_in_elim2 matching_in_elim3 *) matching_in_elim4: core.
 Hint Resolve matching_in_elim4a matching_in_elim5a: core. 
-Hint Resolve matching_in_elim5 matching_in_elim6 matching_in_elim7 matching_in_elim7a matching_in_elim8: core.
+Hint Resolve matching_in_elim5 matching_in_elim6 matching_in_elim7 matching_in_elim7a :core.
+Hint Resolve matching_in_elim8 matching_in_elim9a matching_in_elim9b matching_in_elim9: core.
 Hint Immediate Is_IR_intro: core.
 Hint Resolve Is_IR_elim Is_IR_elim1: core.
 

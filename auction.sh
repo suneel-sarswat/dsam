@@ -37,6 +37,19 @@ coqc mMatching.v
 printf ‘Fair_bids.v
 coqc mFair_Bid.v
 
+printf ‘Fair_asks.v
+coqc mFair_Ask.v
+
+printf ‘Fair.v
+coqc MQFair.v
+
+coqc MatchingAlter.v
+
+printf ‘UM
+coqc mUM.v
+
+coqc MQUM.v
+
 echo \
 
 

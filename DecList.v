@@ -358,6 +358,24 @@ Proof. unfold "[<=]". intros. specialize (H a). simpl in H. destruct H2.
 { destruct H. left. auto. subst. elim H0. auto. auto. }
 { destruct H. right. auto. subst a. contradiction. exact. } Qed.
 
+Lemma last_in_list (l:list A)(x:A)(d:A) : In x l -> In (last l d) l.
+Proof. { revert x d. 
+         induction l as [| a l'].
+         { (*------ l = nil ------*) 
+           simpl. auto. }
+         { (*------ l = a::l'-----*)
+           destruct l' as [| b l'']. 
+           { (*----- l = [a]------*)
+            simpl. intros; left;auto. }
+           { (*------ l = a ::b::l'' --------*) 
+             intros x d H0.
+             assert (H1: last (a::b::l'') d = last (b::l'') d).
+             { simpl. destruct l'';auto. }
+             rewrite H1.
+             cut(In (last (b :: l'') d) (b :: l'')). auto.
+             eapply IHl' with (x:=b). auto. } } } Qed.
+
+
   Hint Resolve subset_cardinal_le subset_cardinal_lt subset_elim1 subset_elim2: core.
 
 End DecLists.

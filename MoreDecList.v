@@ -77,6 +77,19 @@ Proof. { intros. induction l.
            auto. specialize (H a0) as Ha0. assert (H2: In a0 (a0 :: l)).
            auto. apply Ha0 in H2. subst a0. apply IHl in H1.
            constructor. auto. exact. }} Qed.
+Lemma uniform_subset (l1 l2: list A): 
+l1 [<=] l2 -> uniform (l2) -> uniform l1.
+Proof. { revert l2. induction l1. 
+         { simpl. intros. constructor. }
+         { simpl. intros. 
+           assert(In a l2). eauto.
+           assert (Ha: (forall x : A, In x l2 -> x = a)).
+           intros. eapply uniform_elim4. eauto. auto. auto.
+           apply uniform_intro.
+           intros. assert(In x l2).
+           eauto. apply Ha with (x:=x) in H3. auto. } }
+ Qed.
+
 
 (* ----------------- delete_all operation ---------------------------------------------  *)
 
@@ -478,7 +491,6 @@ Section Permutation.
           { simpl. destruct (a==a0) eqn:H0. simpl. auto. simpl. intros H. 
             destruct (memb a s) eqn:H1. auto. auto. } } Qed. 
 
-
   Lemma included_elim (l s: list A): included l s-> (forall a, count a l <= count a s).
   Proof. { revert s. induction l. simpl. intros;lia. 
            intros s H x. apply included_elim2 in H as H1. apply included_elim3 in H as H2.
@@ -490,7 +502,7 @@ Section Permutation.
            replace (count x (a::l)) with (count x l).
            replace (count x s) with  (count x (delete a s)).
            eauto. all: symmetry;eauto. } Qed. 
-    
+
   Lemma included_elim4 (a:A)(l s: list A): included (a::l) s -> included l s.
   Proof. { intro H. assert (H1: (forall a0, count a0 (a::l) <= count a0 s)).
            eapply included_elim. exact. eapply included_intro. 
@@ -510,6 +522,45 @@ assert (H1: (forall a1, count a1 l <= count a1 (a0::l))). intros.
   assert (H3:(included (delete a l) l)-> (included (a0 :: delete a l) (a0 :: l))). 
   eapply included_elim4b. eapply H3 in IHl. exact. } Qed.
   
+  Lemma included_elim3a (a:A)(l s: list A): included l s -> included (delete a l) (delete a s).
+  Proof. intros. apply included_intro. intros. apply included_elim with (a:=a0) in H.
+         assert(a0=a\/a0<>a). eauto. destruct H0. 
+      { subst a0.
+         assert(In a l\/~In a l). eauto.
+         assert(In a s\/~In a s). eauto.
+         destruct H0;destruct H1.
+         { apply countP7 in H0. apply countP7 in H1. lia. }
+         { apply countP7 in H0. apply countP2 in H1. lia. }
+         { assert(delete a l = l). symmetry;eauto. 
+           rewrite H2.  apply countP7 in H1. apply countP2 in H0. lia. }
+         { assert(delete a l = l). symmetry;eauto. 
+           assert(delete a s = s). symmetry;eauto.
+           rewrite H2. rewrite H3. lia. } }
+       { apply countP9 with (l0:=l) in H0 as H1.
+         apply countP9 with (l0:=s) in H0 as H2.
+         lia. } Qed.   
+
+  Lemma included_elim3b (a:A)(l s: list A): included l (a::s) -> 
+  ~In a l -> included l s.
+  Proof. intros. apply included_intro. intros. apply included_elim with (a:=a0) in H.
+         simpl in H.
+         assert(a0=a\/a0<>a). eauto. destruct H1. 
+      { subst a0.
+         assert(In a l\/~In a l). eauto.
+         assert(In a s\/~In a s). eauto.
+         destruct H1;destruct H2. eauto. eauto.
+         { simpl in H. replace (a==a) with true in H. apply countP7 in H2.
+           assert(delete a l = l). symmetry;eauto.   apply countP2 in H0. lia.
+           eauto. }
+         { apply countP2 in H0. apply countP2 in H2. lia. } } 
+       { apply countP9 with (l0:=l) in H1 as H2.
+         destruct (a0 == a) eqn:Ha. move /eqP in Ha. subst a. elim H1.  auto.
+         auto. } Qed.
+         
+  Lemma included_elim3c (a:A)(l s: list A): included (l) (a::s) -> 
+  included (delete a l) s.
+  Proof. intros. eapply included_elim3a with (a:=a) in H.
+         simpl in H. replace (a==a) with true in H. auto. eauto. Qed.
   
 
    Lemma included_elim5 (l s: list A): included l s -> Subset l s.
@@ -744,7 +795,7 @@ assert (H1: (forall a1, count a1 l <= count a1 (a0::l))). intros.
  End Permutation. 
 
 
-
+  Hint Resolve uniform_subset: core.
 
   Hint Resolve count_in_putin1 count_in_putin2 count_in_sorted: core.
 

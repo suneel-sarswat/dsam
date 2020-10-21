@@ -230,6 +230,19 @@ Section Sorting.
          unfold "[=]" in H2. apply H2. auto.
          assert (H4A: b <=r a). eapply Sorted_elim2;eauto.
          eapply Hanti. split_;auto. } Qed.  
+  Lemma sort_equal_nodup (l: list A)(Href: reflexive lr)(Hanti: antisymmetric lr):
+    Sorted l-> NoDup l-> sort l = l.
+  Proof. { induction l. auto. intros. simpl. rewrite IHl.
+           eauto. eauto. case l eqn:Hl. simpl. auto. intros. simpl.
+           destruct (a <=r a0) eqn:Ha. f_equal.
+           apply Sorted_elim2 with (x:=a0) in H.
+           assert(a=a0). apply Hanti. apply /andP.
+           split. auto. rewrite H in Ha.
+           auto. subst. assert(~In a0 ((a0 :: l0))).
+           eauto. assert(In a0 (a0 :: l0)). auto.
+           unfold not in H1. apply H1 in H2. 
+           elim H2. apply Href. auto. } Qed. 
+           
 
 End Sorting. 
 
@@ -240,6 +253,7 @@ Hint Resolve putin_intro putin_intro1 putin_elim putin_correct nodup_putin : cor
 Hint Resolve sort_elim sort_intro sort_correct sort_same_size : core.
 Hint Resolve sort_equal sort_equal1 Sorted_equal Sorted_equal1 nodup_sort: core.
 Hint Resolve empty_equal_nil_l head_equal_l: core.
+Hint Immediate sort_equal_nodup: core.
 
 
 

@@ -1754,46 +1754,4 @@ Proof. intros. case B as [|b B'].
        }
 Qed.  
 
-Theorem UM_aux_optimal (B:list Bid)(A:list Ask)(M:list fill_type)
-(NZB: forall b, In b B -> (bq b)>0)
-(NZA: forall a, In a A -> (sq a)>0)
-(NDA:NoDup (idas_of A))
-(NDB:NoDup (idbs_of B))
-(NZT: forall m : fill_type, In m M -> tq m > 0)
-(Hanti: (antisymmetric by_sp)/\(antisymmetric by_dbp)):
-Sorted by_dbp B -> 
-Sorted by_sp A ->
-(Is_uniform M B A)
--> QM(M) <= QM(UM_aux B A 0 0).
-Proof. intros. case B as [|b B']. 
-       {
-        simp UM_aux.
-        simpl. destruct H1. 
-        destruct H2.
-        apply matching_on_nilB in H2. 
-        rewrite H2.  simpl. lia.
-        }
-       case A as [|a A'].
-       {
-        simp UM_aux.
-        simpl. destruct H1. 
-        destruct H2.
-        apply matching_on_nilA in H2. 
-        rewrite H2.  simpl. lia.
-       }        
-       apply UM_aux_OPT.
-       all:auto.
-       { intros. destruct H2. subst b0. simpl.
-        replace (bq b - 0) with (bq b). eauto. lia. eauto.
-       }
-       { intros. destruct H2. subst a0. simpl.
-        replace (sq a - 0) with (sq a). eauto. lia. eauto.
-       }
-       { replace (bq b - 0) with (bq b).
-         replace (sq a - 0) with (sq a).
-         destruct b. destruct a. simpl. auto.
-         lia. lia.
-       }
-Qed.  
-  
 End UM.

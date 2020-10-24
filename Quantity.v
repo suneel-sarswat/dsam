@@ -741,7 +741,9 @@ bids_of M1 [<=] B -> bids_of M2 [<=] B -> (forall b, ttqb M1 b = ttqb M2 b) -> Q
 Proof. intros. eapply QM_equal_QMb in H;eapply QM_equal_QMb in H0. 
 eapply QMb_equal_QMb with (B:=B) in H1. lia. all:exact. Qed.
 
-Hint Resolve QM_equal_QMa QMa_equal_QMa QM_equal_QMb QMb_equal_QMb
+
+Hint Resolve 
+QM_equal_QMa QMa_equal_QMa QM_equal_QMb QMb_equal_QMb
  fill_size_vs_bid_size ttqaM1_equal_ttqaM2 ttqb_BM_t_B ttqa_AM_t_A
   fill_size_vs_ask_size ttqbM1_equal_ttqbM2: core.
 

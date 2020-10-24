@@ -50,6 +50,11 @@ coqc mUM.v
 
 coqc MQUM.v
 
+printf ‘MM
+coqc mMM.v
+
+coqc MQMM.v
+
 echo \
 
 

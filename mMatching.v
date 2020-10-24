@@ -152,135 +152,45 @@ Proof. { intros. unfold matching in H. destruct H. destruct H0. unfold matching.
          right. exact. destruct (a_eqb a (ask_of m)). lia. lia.
          destruct (a_eqb a (ask_of m)). lia. lia. } } Qed.
 
-(*
-Lemma matching_elim14 (m1 m2: fill_type) (M: list fill_type): matching M -> In m1 M -> In m2 M ->
-                                                              m1 <> m2 -> bid_of m1 <> bid_of m2.
-Proof. { induction M.
-         { intros. destruct H0. }
-         { intros.  destruct H. destruct H3. destruct H1;destruct H0.
-           { subst m1. subst m2. destruct H2. exact. }
-           { subst a. simpl in H4.
-             assert (H5: In (bid_of m1) (bids_of M)). eauto. 
-             assert (H6: ~ In (bid_of m2) (bids_of M)). eauto.
-             intro h7. rewrite h7 in H5. contradiction. } 
-           { subst a. simpl in H4.
-             assert (H5: In (bid_of m2) (bids_of M)). eauto. 
-             assert (H6: ~ In (bid_of m1) (bids_of M)). eauto.
-             intro h7. rewrite h7 in H6. contradiction. }
-           { apply IHM. unfold matching;eauto. all: exact. } } } Qed.
-
-Lemma matching_elim15 (m1 m2: fill_type) (M: list fill_type): matching M -> In m1 M -> In m2 M ->
-                                                              m1 <> m2 -> ask_of m1 <> ask_of m2.
-Proof.  { induction M.
-          { intros. destruct H0. } 
-          { intros.  destruct H. destruct H3. destruct H1;destruct H0. 
-            { subst m1. subst m2. destruct H2. exact. }
-            { subst a. simpl in H4.
-              assert (H5: In (ask_of m1) (asks_of M)). eauto. 
-              assert (H6: ~ In (ask_of m2) (asks_of M)). eauto.
-              intro h7. rewrite h7 in H5. contradiction. } 
-            { subst a. simpl in H4.
-              assert (H5: In (ask_of m2) (asks_of M)). eauto. 
-              assert (H6: ~ In (ask_of m1) (asks_of M)). eauto.
-              intro h7. rewrite h7 in H6. contradiction. }
-            { apply IHM. unfold matching;eauto. all: exact. } } } Qed.
-
-
-
-Lemma matching_elim7 (m: fill_type) (M: list fill_type): In m M -> matching M ->
-                                                         ~ In (ask_of m) (asks_of (delete m M)).
-Proof.  { intros H1 H2. unfold matching in H2.
-          destruct H2. destruct H0.
-          intro H3.
-          assert (H4: exists m', (In m' (delete m M))/\ (ask_of m = ask_of m')).
-          eauto. destruct H4 as [m' H4]. destruct H4 as [H4 H5].
-          assert (H6: In m' M). eapply included_elim2. eapply included_elim4.
-          apply included_intro2. exact H1. apply included_intro2. exact H4.
-          apply included_refl. assert (H7: m'<>m).
-          cut (NoDup M).
-          { intro. eapply delete_elim2. exact H7. exact H4. }
-          apply matching_elim3. unfold matching. auto.
-          eapply matching_elim15 in H7. symmetry in H5.
-          contradiction. instantiate (1:=M).
-          unfold matching. auto. exact. exact. } Qed.
- 
-  
-
-Lemma matching_elim8 (m: fill_type) (M: list fill_type): In m M -> matching M ->
-                                                         ~ In (bid_of m) (bids_of (delete m M)).
-Proof.  { intros H1 H2. unfold matching in H2. destruct H2. destruct H0.
-          intro H3.
-          assert (H4: exists m', (In m' (delete m M))/\ (bid_of m = bid_of m')). eauto.
-          destruct H4 as [m' H4]. destruct H4 as [H4 H5].
-          assert (H6: In m' M). 
-          eapply included_elim2. eapply included_elim4.
-          apply included_intro2. exact H1. apply included_intro2. exact H4.
-          apply included_refl.
-          assert (H7: m'<>m).
-          cut (NoDup M). intro. eapply del_all_elim2. 
-          apply del_all_intro. exact H6. eapply delete_elim2.
-          exact H7. exact H4.
-          apply matching_elim3.
-          unfold matching. auto. eapply matching_elim14 in H7.
-          symmetry in H5. contradiction. instantiate (1:=M).
-          unfold matching. auto. exact. exact. } Qed.
-
-*)
-
 Lemma matching_elim9 (m: fill_type) (M: list fill_type): matching M ->  matching (delete m M).
 Proof. { intros H. unfold matching in H. destruct H. destruct H0.
          unfold matching. split. 
          { eauto. }
          split.
+
          {  intros. assert(In b (bids_of M)\/~In b (bids_of M)).
-            eauto. destruct H3. apply H0 in H3. 
-            admit. (*write rewrite ttqb_delete*)
-            apply ttqb_elim in H3. admit. }
-         { intros. admit. } } Admitted.
-(*
-Lemma matching_elim10 (m: fill_type) (M: list fill_type): matching M -> In m M ->
-                                                          ~ In (bid_of m) (bids_of (delete m M)).
-Proof. intros. eapply  matching_elim8. exact. exact. Qed.
+            eauto. destruct H3.
+            assert(In m  M\/~In m M). eauto. destruct H4.
+            destruct (b_eqb b (bid_of m)) eqn:Hbm.
+            move /eqP in Hbm.
+            apply ttqb_delete_m_ofb with (M:=M) in Hbm. apply H0 in H3.
+            lia. auto. move /eqP in Hbm. 
+            apply ttqb_delete_m_not_ofb with (M:=M) in Hbm.
+            apply H0 in H3. lia. auto. assert(M=(delete m M)).
+            eauto. rewrite<- H5. apply H0 in H3. lia.
+            assert(In b (bids_of M)). eauto.
+            unfold not in H3. apply H3 in H4.
+            elim H4. }
 
-Lemma matching_elim11 (m: fill_type) (M: list fill_type): matching M -> In m M ->
-                                                          ~ In (ask_of m) (asks_of (delete m M)).
-Proof. intros. eapply  matching_elim7. all: exact. Qed.
+         {  intros. assert(In a (asks_of M)\/~In a (asks_of M)).
+            eauto. destruct H3.
+            assert(In m  M\/~In m M). eauto. destruct H4.
+            destruct (a_eqb a (ask_of m)) eqn:Hbm.
+            move /eqP in Hbm.
+            apply ttqa_delete_m_ofa with (M:=M) in Hbm. apply H1 in H3.
+            lia. auto. move /eqP in Hbm. 
+            apply ttqa_delete_m_not_ofa with (M:=M) in Hbm.
+            apply H1 in H3. lia. auto. assert(M=(delete m M)).
+            eauto. rewrite<- H5. apply H1 in H3. lia.
+            assert(In a (asks_of M)). eauto.
+            unfold not in H3. apply H3 in H4.
+            elim H4. }
+} Qed.
 
-Lemma matching_elim12 (m: fill_type) (M: list fill_type): matching (m::M) ->
-                                                          ~ In (bid_of m) (bids_of M).
-Proof. { intros. intro. destruct H. destruct H1.  simpl in H1.
-         eapply nodup_elim2 in H1. contradiction. } Qed.
-
-Lemma matching_elim13 (m: fill_type) (M: list fill_type): matching (m::M) ->
-                                                          ~ In (ask_of m) (asks_of M).
-Proof. { intros. intro. destruct H. destruct H1.  simpl in H2. eapply nodup_elim2 in H2.
-         contradiction. } Qed.
-
-
-*)
 
 Hint Resolve matching_elim0 matching_elim1 matching_elim2 (*matching_elim3*): core.
 Hint Resolve (*matching_elim4 matching_elim5 matching_elim7 *) matching_elim6: core.
 Hint Resolve matching_elim9 (*matching_elim8 matching_elim10 matching_elim11*): core.
-(*
-Hint Resolve matching_elim12 matching_elim13: core.
-Hint Resolve matching_elim14 matching_elim15: core.
-*)
-
-(*-----------------introduction and elimination for matching_in -----------------*)          
-(*                                               
-Lemma matching_in_intro (m: fill_type) (M: list fill_type)(B: list Bid)(A: list Ask):
-  (ask_of m) <= (bid_of m) -> matching_in B A M -> ~ In (bid_of m) (bids_of M) ->
-  ~ In (ask_of m) (asks_of M) -> In (bid_of m) B -> In (ask_of m) A -> matching_in B A (m::M).
-
-Proof.  { intros H1 H2 H3 H4 H5 H6. unfold matching_in. split.
-          unfold matching in H2. destruct H2. destruct H. destruct H2.
-          destruct H0. unfold matching.
-          split. eauto. split. simpl. eapply nodup_intro in H3. exact. exact.
-          eapply nodup_intro in H4. exact. exact. destruct H2. destruct H0. split.
-          simpl. unfold "[<=]". intros. destruct H7. subst a. exact. eauto.
-          simpl. unfold "[<=]". intros. destruct H7. subst a. exact. eauto. } Qed.
-*)
   Lemma matching_in_elim0 (M: list fill_type)(B: list Bid)(A: list Ask): matching_in B A M ->
                                                                          matching M.
   Proof. intros. unfold matching_in in H. destruct H. exact. Qed.
@@ -296,22 +206,6 @@ Lemma matching_in_elim1 (m: fill_type) (M: list fill_type) (B: list Bid)(A: list
 Proof. { unfold matching_in. intros H. destruct H as [H1 H].
          destruct H1 as [H1 H2]. eauto. } Qed.
  
-(*
-Lemma matching_in_elim2 (m: fill_type) (M: list fill_type) (B: list Bid)(A: list Ask):
-  matching_in B A (m::M) ->   ~ In (bid_of m) (bids_of M).
-Proof. { unfold matching_in;unfold matching. intros H.
-         destruct H as [H1 H]. destruct H as [H2 H]. destruct H1 as [H1 H3].
-         destruct H3 as [H3 H4]. eauto. } Qed.
-
-
-Lemma matching_in_elim3 (m: fill_type) (M: list fill_type) (B: list Bid)(A: list Ask):
-  matching_in B A (m::M) ->   ~ In (ask_of m) (asks_of M).
-Proof. { unfold matching_in;unfold matching. intros H.
-         destruct H as [H1 H]. destruct H as [H2 H]. destruct H1 as [H1 H3].
-         destruct H3 as [H3 H4]. eauto. } Qed.
-
-*)
-
 Lemma matching_in_elim4 (m: fill_type) (M: list fill_type) (B: list Bid)(A: list Ask):
   matching_in B A (m::M) ->   In (bid_of m) B.
 Proof. { unfold matching_in;unfold matching. intros H.
@@ -355,9 +249,8 @@ Proof. { unfold matching_in. intros. destruct H. destruct H0. split. eauto. spli
           destruct H4. unfold matching. split.
           { split. { exact. } { eauto. } }
           split. 
-          
-          { admit. }
-          { admit. } } Admitted.
+          { eauto.  }
+          { eauto. } } Qed.
   
 
 Lemma matching_in_elim9b (M:list fill_type)(b:Bid)(a:Ask)(B:list Bid)(A:list Ask): 
@@ -390,6 +283,45 @@ Proof. intro H.
 apply matching_in_elim9a with (b:=b)(a:=a) in H as Ha. 
 apply matching_in_elim9b with (b:=b)(a:=a) in H as Hb.
 lia. Qed. 
+ 
+ 
+ 
+
+Lemma matching_on_nilA (B:list Bid) (M:list fill_type) : matching_in B nil M -> M=nil.
+Proof. { intros H1. unfold matching_in in H1. destruct H1 as [H1 H2].
+         destruct H2 as [H2 H3]. unfold matching in H1. destruct H1 as [H1 H4]. 
+         unfold All_matchable in H1. assert (HAMnil: (asks_of M) = nil). eauto.
+         case M eqn: HM. auto. simpl in HAMnil. inversion HAMnil. } Qed.
+
+Lemma matching_on_nilB (A: list Ask)(M:list fill_type) : matching_in nil A M -> M=nil.
+Proof. { intros H1. unfold matching_in in H1. destruct H1 as [H1 H2].
+         destruct H2 as [H2 H3]. unfold matching in H1. destruct H1 as [H1 H4]. 
+         unfold All_matchable in H1. assert (HBMnil: (bids_of M) = nil). eauto.
+         case M eqn: HM. auto. simpl in HBMnil. inversion HBMnil. } Qed.
+
+Lemma matching_on_bnill (A: list Ask)(M:list fill_type)(b:Bid): 
+matching_in (b::nil) A M -> QM(M)<=bq b.
+Proof. intros. destruct H. destruct H. destruct H0.
+       assert(NoDup (b :: nil)). eauto. apply QM_equal_QMb in H0. 
+       simpl in H0. 
+       apply fill_size_vs_bid_size with (M:=M) in H3.
+       simpl in H3. lia. intros. 
+       assert(In b0 (bids_of M)\/~In b0 (bids_of M)).
+       eauto. destruct H5. apply H1. auto. apply ttqb_elim in H5. lia.
+       eauto. Qed.
+       
+Lemma matching_on_anill (B: list Bid)(M:list fill_type)(a:Ask): 
+matching_in B (a::nil) M -> QM(M)<=sq a.
+Proof. intros. destruct H. destruct H. destruct H0.
+       assert(NoDup (a :: nil)). eauto. apply QM_equal_QMa in H2. 
+       simpl in H2. 
+       apply fill_size_vs_ask_size with (M:=M) in H3.
+       simpl in H3. lia. intros. 
+       assert(In a0 (asks_of M)\/~In a0 (asks_of M)).
+       eauto. destruct H5. apply H1. auto. apply ttqa_elim in H5. lia.
+       eauto. Qed.
+
+
  
 Hint Resolve matching_in_elim4a matching_in_elim5a matching_in_elim9: core. 
 (*Hint Immediate matching_in_intro: auction.*)
@@ -469,115 +401,6 @@ Proof. { unfold Uniform. intros H1 H2 H3.
 Hint Resolve Uniform_intro  Uniform_intro1 Uniform_elim : core.
 Hint Immediate Uniform_intro2 : core.
 
-(*-------------- buyers_above and sellers_above relationship and results------------------*)
-
-Definition buyers_above (p: nat)(B: list Bid): list Bid :=
-  filter (fun x:Bid => Nat.leb p (bp x))  B.
-
-Lemma buyers_above_elim (p:nat)(B: list Bid)(x:Bid):
-  In x (buyers_above p B)-> bp(x) >= p.
-Proof. { unfold buyers_above. intros H. 
-         induction B. 
-         {  simpl in H. destruct H. } 
-         {  simpl in H.  
-            destruct (Nat.leb p a) eqn: H1. 
-            { simpl in H. destruct H. subst x. move /leP in H1. auto. 
-            apply IHB in H. exact. }
-            { apply IHB in H. exact. }}} Qed.
-      
-Lemma buyers_above_intro (p:nat)(B: list Bid)(x:Bid):
- ( In x B /\ (Nat.leb p x)) -> In x (buyers_above p B).
-Proof. { intros H. destruct H as [H1  H2].  
-         induction B. 
-         { destruct H1. }
-         { simpl in H1. 
-           destruct H1 as [H1a | H1b].
-           { subst x. simpl. destruct (Nat.leb p a) eqn: Hpa. auto.
-            apply IHB. eapply insert_elim2. apply insert_intro3.
-            auto. }
-           { apply IHB in H1b. simpl. destruct (Nat.leb p a) eqn: Hpa.
-             eauto. exact. }}} Qed.
-
-Definition sellers_above (p: nat)(A: list Ask): list Ask :=
-  filter (fun x:Ask => Nat.leb p (sp x)) (A).
-
-Lemma sellers_above_elim (p:nat)(A: list Ask)(x:Ask):
-  In x (sellers_above p A)-> sp(x) >= p.
-Proof. { unfold sellers_above. intros H. 
-         induction A. 
-         {  simpl in H. destruct H. } 
-         {  simpl in H.  
-            destruct (Nat.leb p a) eqn: H1. 
-            { simpl in H. destruct H. subst x. move /leP in H1. auto. 
-            apply IHA in H. exact. }
-            { apply IHA in H. exact. }}} Qed.
-            
-Lemma sellers_above_intro (p:nat)(A: list Ask)(x:Ask):
- ( In x A /\ Nat.leb p x ) -> In x (sellers_above p A).
-Proof. { intros H. destruct H as [H1  H2].  
-         induction A. 
-         { destruct H1. }
-         { simpl in H1. 
-           destruct H1 as [H1a | H1b].
-           { subst x. simpl. destruct (Nat.leb p a) eqn: Hpa. auto. 
-             apply IHA. eapply insert_elim2. apply insert_intro3.
-            auto. }
-           { apply IHA in H1b. simpl. destruct (Nat.leb p a) eqn: Hpa.
-             eauto. exact. }}} Qed.
-
-Definition buyers_below (p: nat)(B: list Bid): list Bid :=
-  filter (fun x:Bid => Nat.leb (bp x) p) (B).
-
-Lemma buyers_below_intro (p:nat)(B: list Bid)(x:Bid):
- ( In x B /\ Nat.leb x p ) -> In x (buyers_below p B).
-Proof. { intros H. destruct H as [H1  H2].  
-         induction B. 
-         { destruct H1. }
-         { simpl in H1. 
-           destruct H1 as [H1a | H1b].
-           { subst x. simpl. destruct (Nat.leb a p) eqn: Hpa. auto. 
-             apply IHB. eapply insert_elim2. apply insert_intro3.
-            auto. }
-           { apply IHB in H1b. simpl. destruct (Nat.leb a p) eqn: Hpa.
-             eauto. exact. }}} Qed.
-
-Lemma buyers_below_elim (p:nat)(B: list Bid)(x:Bid):
-  In x (buyers_below p B)-> bp(x) <= p.
-Proof.  { unfold sellers_above. intros H. 
-         induction B. 
-         {  simpl in H. destruct H. } 
-         {  simpl in H.  
-            destruct (Nat.leb a p) eqn: H1. 
-            { simpl in H. destruct H. subst x. move /leP in H1. auto. 
-            apply IHB in H. exact. }
-            { apply IHB in H. exact. }}} Qed.
-
-Definition sellers_below (p: nat)(A: list Ask): list Ask :=
-  filter (fun x:Ask => Nat.leb (sp x) p) (A).
-
-Lemma sellers_below_intro (p:nat)(A: list Ask)(x:Ask):
- ( In x A /\ Nat.leb x p ) -> In x (sellers_below p A).
-Proof. { intros H. destruct H as [H1  H2].  
-         induction A. 
-         { destruct H1. }
-         { simpl in H1. 
-           destruct H1 as [H1a | H1b].
-           { subst x. simpl. destruct (Nat.leb a p) eqn: Hpa. auto.
-             apply IHA. eapply insert_elim2. apply insert_intro3.
-            auto. }
-           { apply IHA in H1b. simpl. destruct (Nat.leb a p) eqn: Hpa.
-             eauto. exact. }}} Qed.
-
-Lemma sellers_below_elim (p:nat)(A: list Ask)(x:Ask):
-  In x (sellers_below p A)-> sp(x) <= p.
-Proof. { unfold sellers_below. intros H. 
-         induction A. 
-         {  simpl in H. destruct H. } 
-         {  simpl in H.  
-            destruct (Nat.leb a p) eqn: H1. 
-            { simpl in H. destruct H. subst x. move /leP in H1. auto. 
-            apply IHA in H. exact. }
-            { apply IHA in H. exact. }}} Qed.
 
 
 Lemma matching_size_bids (M:list fill_type)(A:list Ask)(B:list Bid)(NDB:NoDup B):
@@ -586,7 +409,29 @@ Proof. intros. destruct H. destruct H0. destruct H. destruct H2.
 rewrite <- QM_equal_QMb with (B:=B). apply fill_size_vs_bid_size.
 auto. apply ttqb_BM_t_B. all:auto. Qed.
 
+Lemma tqm_le_bqm (M:list fill_type) (B:list Bid) (A:list Ask)(m:fill_type):
+matching_in B A M -> 
+In m M -> 
+tq m <= bq (bid_of m).
+Proof. intros. induction M. elim H0.
+simpl. destruct H0. subst a.
+destruct H. destruct H. 
+assert(In (bid_of m) (bids_of (m :: M))).
+eauto. apply H1 in H2. simpl in H2.
+replace (b_eqb (bid_of m) (bid_of m)) with true in H2.
+lia. eauto. apply IHM in H0. auto. eauto. Qed.
 
+Lemma tqm_le_sqm (M:list fill_type) (B:list Bid) (A:list Ask)(m:fill_type):
+matching_in B A M -> 
+In m M -> 
+tq m <= sq (ask_of m).
+Proof. intros. induction M. elim H0.
+simpl. destruct H0. subst a.
+destruct H. destruct H. 
+assert(In (ask_of m) (asks_of (m :: M))).
+eauto. apply H1 in H2. simpl in H2.
+replace (a_eqb (ask_of m) (ask_of m)) with true in H2.
+lia. eauto. apply IHM in H0. auto. eauto. Qed.
 
 End Matching.
 

@@ -1349,39 +1349,6 @@ Proof. intros.
 Qed. 
 
 
-Lemma matching_on_nilA (B:list Bid) (M:list fill_type) : matching_in B nil M -> M=nil.
-Proof. { intros H1. unfold matching_in in H1. destruct H1 as [H1 H2].
-         destruct H2 as [H2 H3]. unfold matching in H1. destruct H1 as [H1 H4]. 
-         unfold All_matchable in H1. assert (HAMnil: (asks_of M) = nil). eauto.
-         case M eqn: HM. auto. simpl in HAMnil. inversion HAMnil. } Qed.
-
-Lemma matching_on_nilB (A: list Ask)(M:list fill_type) : matching_in nil A M -> M=nil.
-Proof. { intros H1. unfold matching_in in H1. destruct H1 as [H1 H2].
-         destruct H2 as [H2 H3]. unfold matching in H1. destruct H1 as [H1 H4]. 
-         unfold All_matchable in H1. assert (HBMnil: (bids_of M) = nil). eauto.
-         case M eqn: HM. auto. simpl in HBMnil. inversion HBMnil. } Qed.
-
-Lemma matching_on_bnill (A: list Ask)(M:list fill_type)(b:Bid): 
-matching_in (b::nil) A M -> QM(M)<=bq b.
-Proof. intros. destruct H. destruct H. destruct H0.
-       assert(NoDup (b :: nil)). eauto. apply QM_equal_QMb in H0. 
-       simpl in H0. 
-       apply fill_size_vs_bid_size with (M:=M) in H3.
-       simpl in H3. lia. intros. 
-       assert(In b0 (bids_of M)\/~In b0 (bids_of M)).
-       eauto. destruct H5. apply H1. auto. apply ttqb_elim in H5. lia.
-       eauto. Qed.
-       
-Lemma matching_on_anill (B: list Bid)(M:list fill_type)(a:Ask): 
-matching_in B (a::nil) M -> QM(M)<=sq a.
-Proof. intros. destruct H. destruct H. destruct H0.
-       assert(NoDup (a :: nil)). eauto. apply QM_equal_QMa in H2. 
-       simpl in H2. 
-       apply fill_size_vs_ask_size with (M:=M) in H3.
-       simpl in H3. lia. intros. 
-       assert(In a0 (asks_of M)\/~In a0 (asks_of M)).
-       eauto. destruct H5. apply H1. auto. apply ttqa_elim in H5. lia.
-       eauto. Qed.
 
 
 
@@ -1444,6 +1411,7 @@ Proof. { intros H1 H2 H3 H4.
            lia.
            }            
  } } Qed.
+
 
 Theorem UM_aux_OPT (B:list Bid)(A:list Ask)(M:list fill_type)
 (b:Bid)(a:Ask)(ta tb: nat)

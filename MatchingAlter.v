@@ -17,7 +17,7 @@ Require Export MQFair.
 Section Transform.
 
 Definition Is_uniform M B A := (Uniform M /\ matching_in B A M /\ Is_IR M).
-(*########Surgery for Q(b,a,M')  = Q(b,a,M) + 1 matching ############*)
+(*########UM Surgery for Q(b,a,M')  = Q(b,a,M) + 1 matching ############*)
 
 (*This function g_increase_top takes two transactions ma and mb of M, where ask of ma is a and bid of mb is b. It reduces the trades quantity of ma and mb by 1 and inserts two transactions of single quantity between a <--> b and between partners if a and b. This is used in the proofs maximality for MM and UM. 
 Here we proves correctness properties of g_increase_top.*)
@@ -443,6 +443,56 @@ Proof.
            eauto.
          }
       } Qed.
+      
+      
+Lemma g_increase_top_matching_IR (M:list fill_type)(m1 m2:fill_type)(b:Bid)(a:Ask)
+(NZT:(forall m, In m M -> (tq m) > 0)):
+In m1 M ->
+In m2 M ->
+Is_IR M ->
+b=bid_of m2 ->
+a=ask_of m1 ->
+b>= a ->
+a>= ask_of m2 ->
+b>= bid_of m1 ->
+All_matchable M ->
+Is_IR (g_increase_top M m2 m1 b a).
+Proof. unfold Is_IR. unfold All_matchable.
+       unfold g_increase_top. unfold rational. 
+       intros.
+       apply H1 in H as Hm1p.
+       apply H1 in H0 as Hm2p.
+(*       assert(tp m1 = tp m2). eauto.*)
+       destruct (Nat.eqb (tq m2) 1) eqn:Hm1.
+       { destruct (Nat.eqb (tq m1) 1) eqn:Hm2.
+         { simpl in H8. 
+           destruct H8. subst m. 
+           simpl. subst. lia. destruct H8. subst m. 
+           simpl. subst. lia. eauto.
+         }
+         { simpl in H8. 
+           destruct H8. subst m. simpl. subst. lia. 
+           destruct H8. subst m. simpl. subst. lia. 
+           destruct H8. subst m. simpl. subst. lia. 
+           eauto.
+         }
+       }
+       { destruct (Nat.eqb (tq m1) 1) eqn:Hm2.
+         { simpl in H8. 
+           destruct H8. subst m. simpl. subst. lia. 
+           destruct H8. subst m. simpl. subst. lia. 
+           destruct H8. subst m. simpl. subst. lia. 
+           eauto.
+         }
+         { simpl in H8. 
+           destruct H8. subst m. simpl. subst. lia. 
+           destruct H8. subst m. simpl. subst. lia.
+           destruct H8. subst m. simpl. subst. lia.
+           destruct H8. subst m. simpl. subst. lia.
+           eauto.
+         }
+       } Qed.
+
 
 Lemma g_increase_top_IR (M:list fill_type)(m1 m2:fill_type)(b:Bid)(a:Ask)
 (NZT:(forall m, In m M -> (tq m) > 0)):
@@ -610,7 +660,27 @@ Proof. unfold g_increase_top. intros.
            destruct H3. subst. eauto. eauto.
          }
        } Qed.
-       
+
+
+
+Lemma g_increase_top_matchable (M:list fill_type)(m1 m2:fill_type)(b:Bid)(a:Ask)
+(NZT:(forall m, In m M -> (tq m) > 0)):
+In m1 M ->
+In m2 M ->
+Is_IR M ->
+b=bid_of m2 ->
+a=ask_of m1 ->
+b>= a ->
+a>= ask_of m2 ->
+b>= bid_of m1 ->
+All_matchable M ->
+All_matchable (g_increase_top M m2 m1 b a).
+Proof. intros. assert(Is_IR (g_increase_top M m2 m1 b a)). 
+       apply g_increase_top_matching_IR. all:auto. 
+       unfold Is_IR in H8. unfold rational in H8.  
+       unfold All_matchable. intros.
+       apply H8 in H9. lia. Qed.
+
 Lemma g_increase_top_IR_matchable (M:list fill_type)(m1 m2:fill_type)(b:Bid)(a:Ask)
 (NZT:forall m : fill_type, In m M -> tq m > 0):
 In m1 M ->
@@ -966,6 +1036,363 @@ Qed.
 
 (*#######################End of surgery one#########################*) 
 
+
+(*########Surgery Two############################*)
+
+Definition increase_quantb_by_one (M:list fill_type)(m:fill_type)(b:Bid)(a:Ask):(list fill_type):=
+    if (Nat.eqb (tq m) 1) 
+    then (Mk_fill b a 1 (sp a))::(delete m M)
+    else 
+    (Mk_fill b a 1 (sp a))::
+    (Mk_fill (bid_of m) (ask_of m) (tq m - 1)  (tp m))::(delete m M).
+
+Lemma increase_quantb_by_one_size (M:list fill_type)
+(m:fill_type)(b:Bid)(a:Ask)
+(NZT:(forall m, In m M -> (tq m) > 0)):
+In m M ->
+QM(M) = QM(increase_quantb_by_one M m b a).
+Proof. unfold increase_quantb_by_one. intros. 
+       assert(Hdel:forall M m, In m M -> QM(delete m M) =QM(M) - (tq m)).
+       intros. eauto.
+       assert(QM(M) >= (tq m)). eauto.
+       destruct (Nat.eqb (tq m) 1) eqn:Hm.
+       { simpl. eapply Hdel in H. move /eqP in Hm. lia. }
+       { simpl. eapply Hdel in H as H1. move /eqP in Hm.
+         assert(tq m > 0). apply NZT. auto. lia. } Qed.
+         
+         
+Lemma increase_quantb_by_one_NZT (M:list fill_type)(m:fill_type)
+(b:Bid)(a:Ask)
+(NZT:(forall m, In m M -> (tq m) > 0)):
+In m M ->
+(forall m0, In m0 (increase_quantb_by_one M m b a) -> (tq m0) > 0).
+Proof. unfold increase_quantb_by_one. intros H m0 H0.  
+       destruct (Nat.eqb (tq m) 1) eqn:Hm.
+       { simpl in H0. destruct H0. subst m0. simpl. lia.
+         eauto. }
+       { simpl in H0. destruct H0. subst m0. simpl. lia.
+         destruct H0. subst m0. simpl. 
+         move /eqP in Hm. assert(tq m > 0). 
+           apply NZT. auto.  lia. eauto.
+       } Qed.
+
+(*Proof that in increase_quantb_by_one, the trade between a and b is increased by single unit.*)
+
+Lemma increase_quantb_by_one_trade_correct (M:list fill_type)(m:fill_type)
+(b:Bid)(a:Ask)
+(NZT:(forall m, In m M -> (tq m) > 0)):
+In m M ->
+b=bid_of m ->
+a<>ask_of m->
+ttq_ab (increase_quantb_by_one M m b a) b a= 1 + ttq_ab M b a.
+Proof.
+ unfold increase_quantb_by_one. intros.  
+       destruct (Nat.eqb (tq m) 1) eqn:Hm. 
+       { simpl. replace (a_eqb a a) with true.
+         replace (b_eqb b b) with true. simpl.
+         replace (ttq_ab M b a) with (ttq_ab (delete m M) b a).
+         auto.
+         symmetry. eapply ttq_ab_delete. auto. auto.
+         eauto. eauto.
+       }
+       { simpl. replace (a_eqb a a) with true.
+         replace (b_eqb b b) with true. simpl. 
+         replace (a_eqb a (ask_of m)) with false. 
+         replace (b_eqb b (bid_of m)) with true.
+         simpl. replace (ttq_ab M b a) with (ttq_ab (delete m M) b a).
+         auto. symmetry. eapply ttq_ab_delete.
+         auto. auto. destruct (b_eqb b (bid_of m)) eqn: Hbm.
+         auto.  move /eqP in Hbm. subst b. elim Hbm. auto. auto.
+         eauto. eauto.
+} Qed.
+
+(*Proof that trade fill of bid b is invariant in g*)
+Lemma increase_quantb_by_one_bqb_equal (M:list fill_type)(m:fill_type)(b:Bid)(a:Ask)
+(NZT:(forall m, In m M -> (tq m) > 0)):
+In m M ->
+b=bid_of m ->
+ttqb (increase_quantb_by_one M m b a) b = ttqb M b.
+Proof.
+ unfold increase_quantb_by_one. intros.  
+       destruct (Nat.eqb (tq m) 1) eqn:Hm.
+       move /eqP in Hm.
+       { simpl. replace (b_eqb b b) with true.  
+         replace (ttqb M b) with 
+         (ttqb (delete m M) b + tq m). lia.
+         symmetry. eauto. eauto.
+       }
+       { simpl. replace (b_eqb b b) with true.  
+         destruct (b_eqb b (bid_of m)) eqn: Hbm.
+         { 
+           move /eqP in Hbm. 
+           assert(tq m > 0). auto. move /eqP in Hm.
+           replace (ttqb M b) with (ttqb (delete m M) b + tq m).
+           lia. symmetry. eauto.
+         }
+         { move /eqP in Hbm. subst. elim Hbm. auto. }
+         eauto. } Qed. 
+
+(*Proof that quantity ask a is increased by one*)
+Lemma increase_quantb_by_one_sqa_by_one (M:list fill_type)(m:fill_type)(b:Bid)(a:Ask)
+(NZT:(forall m, In m M -> (tq m) > 0)):
+In m M ->
+a<>ask_of m ->
+ttqa (increase_quantb_by_one M m b a) a = ttqa M a + 1.
+Proof.
+ unfold increase_quantb_by_one. intros.  
+       destruct (Nat.eqb (tq m) 1) eqn:Hm.
+ { move /eqP in Hm. simpl.
+   replace (a_eqb a a) with true.  
+   replace (ttqa M a) with 
+   (ttqa (delete m M) a). lia. 
+   symmetry. eauto. eauto. 
+ }
+ { simpl. replace (a_eqb a a) with true.  
+   destruct (a_eqb a (ask_of m)) eqn: Ham.
+   { move /eqP in Ham. subst. elim H0. auto.
+   }
+   { move /eqP in Hm. replace (ttqa M a) with 
+     (ttqa (delete m M) a). lia. symmetry. eauto.
+   } eauto.
+ } Qed.
+      
+      
+Lemma increase_quantb_by_one_matching_IR (M:list fill_type)
+(m:fill_type)(b:Bid)(a:Ask)
+(NZT:(forall m, In m M -> (tq m) > 0)):
+In m M ->
+Is_IR M ->
+b=bid_of m ->
+b>=a ->
+All_matchable M ->
+Is_IR (increase_quantb_by_one M m b a).
+Proof. unfold Is_IR. unfold All_matchable.
+       unfold increase_quantb_by_one. unfold rational. 
+       intros.
+       apply H0 in H as Hmp.
+       destruct (Nat.eqb (tq m) 1) eqn:Hm.
+       { simpl in H4. destruct H4. subst m0. 
+         simpl. lia. eauto.
+       }
+       { simpl in H4. destruct H4. subst m0. simpl. lia. 
+           destruct H4. subst m0. simpl. lia. 
+           eauto.
+       } Qed.
+
+Lemma increase_quantb_by_one_bids_subset (M:list fill_type)
+(m:fill_type)(b:Bid)(a:Ask):
+In m M ->
+b=bid_of m ->
+bids_of (increase_quantb_by_one M m b a) [<=] bids_of M.
+Proof. unfold increase_quantb_by_one. intros.
+       destruct (Nat.eqb (tq m) 1) eqn:Hm.
+       { simpl. unfold "[<=]". intros. 
+           simpl in H1. 
+           destruct H1. subst. eauto. eauto.
+       }
+       { simpl. unfold "[<=]". intros. 
+         simpl in H1. 
+         destruct H1. subst. eauto. 
+         destruct H1. subst. eauto. 
+         eauto.
+       } Qed.
+       
+Lemma increase_quantb_by_one_asks_subset (M:list fill_type)(m:fill_type)(b:Bid)(a:Ask)(A:list Ask):
+In m M ->
+asks_of M [<=] (a::A) ->
+b=bid_of m ->
+asks_of (increase_quantb_by_one M m b a) [<=] (a::A).
+Proof. unfold increase_quantb_by_one. intros.
+       destruct (Nat.eqb (tq m) 1) eqn:Hm.
+       { simpl. unfold "[<=]". intros. destruct H2.
+         subst a. auto. eauto.
+       } 
+       { simpl. unfold "[<=]". intros. 
+         destruct H2. subst. eauto. 
+         destruct H2. subst. eauto. 
+         eauto.
+       } Qed.
+
+
+
+Lemma increase_quantb_by_one_matchable (M:list fill_type)(m:fill_type)(b:Bid)(a:Ask)
+(NZT:(forall m, In m M -> (tq m) > 0)):
+In m M ->
+Is_IR M ->
+b=bid_of m ->
+b>= a ->
+All_matchable M ->
+All_matchable (increase_quantb_by_one M m b a).
+Proof. intros. assert(Is_IR (increase_quantb_by_one M m b a)). 
+       apply increase_quantb_by_one_matching_IR. all:auto. 
+       unfold Is_IR in H4. unfold rational in H4.  
+       unfold All_matchable. intros.
+       apply H4 in H5. lia. Qed.
+
+Lemma increase_quantb_by_one_ttqb (M:list fill_type)(m:fill_type)(b b0:Bid)(a:Ask)
+(NZT:forall m : fill_type, In m M -> tq m > 0):
+In m M ->
+b=bid_of m ->
+ttqb (increase_quantb_by_one M m b a) b0 = ttqb M b0.
+Proof.
+       destruct (b_eqb b0 b) eqn:Hbb0.
+       { move /eqP in Hbb0. subst. intros.
+         eapply increase_quantb_by_one_bqb_equal.
+         all:auto.
+       }
+       {
+       unfold increase_quantb_by_one. intros.  
+       destruct (Nat.eqb (tq m) 1) eqn:Hm.
+       { simpl. subst. destruct (b_eqb b0 (bid_of m)) eqn: Hbm.
+         inversion Hbb0. move /eqP in Hbm. symmetry. eauto.
+       }
+       { simpl. subst. destruct (b_eqb b0 (bid_of m)) eqn: Hbm.
+         inversion Hbb0. move /eqP in Hbm.  symmetry. eauto.
+       } } Qed.
+
+
+
+Lemma increase_quantb_by_one_ttqa (M:list fill_type)(m:fill_type)(b:Bid)(a a0:Ask)
+(NZT:forall m : fill_type, In m M -> tq m > 0):
+In m M ->
+a0<>a ->
+a0<> ask_of m ->
+ttqa (increase_quantb_by_one M m b a) a0 = ttqa M a0.
+Proof.
+       destruct (a_eqb a0 a) eqn:Ha. 
+       intros. move /eqP in Ha. subst. elim H0;auto.
+       unfold increase_quantb_by_one. intros.  
+       destruct (Nat.eqb (tq m) 1) eqn:Hm.
+       move /eqP in Hm. simpl. rewrite Ha.
+       symmetry; eauto. simpl. rewrite Ha. 
+       destruct (a_eqb a0 (ask_of m)) eqn:Ham.
+       move /eqP in Ham. subst. elim H1. auto.
+       move /eqP in Ham. move /eqP in Hm.
+       symmetry;eauto. Qed.
+
+
+
+Lemma increase_quantb_by_one_ttqa_ofm (M:list fill_type)(m:fill_type)(b:Bid)(a:Ask)
+(NZT:forall m : fill_type, In m M -> tq m > 0):
+In m M ->
+a<> ask_of m ->
+ttqa M (ask_of m)=ttqa (increase_quantb_by_one M m b a) (ask_of m) + 1.
+Proof.
+       intros. destruct (a_eqb (ask_of m) a) eqn: Ha.
+       move /eqP in Ha. subst. elim H0. auto.
+       unfold increase_quantb_by_one.  
+       destruct (Nat.eqb (tq m) 1) eqn:Hm.
+       move /eqP in Hm. simpl.
+       rewrite Ha.
+       rewrite <- Hm. 
+       apply ttqa_delete_m_ofa with (M:=M)(m:=m) (a:=(ask_of m)). all:auto.
+       simpl. rewrite Ha. replace (a_eqb (ask_of m) (ask_of m)) with true.
+       move /eqP in Hm. 
+       cut(ttqa M (ask_of m) = ttqa (delete m M) (ask_of m) + tq m).
+       assert(tq m >0). apply NZT. auto.
+       lia.  apply ttqa_delete_m_ofa. all:auto. Qed.
+
+
+Theorem increase_quantb_by_one_matching (M:list fill_type)(m:fill_type)
+(b:Bid)(a:Ask)(B:list Bid)(A:list Ask)
+(NZT:forall m : fill_type, In m M -> tq m > 0):
+In m M ->
+b=bid_of m ->
+a<>ask_of m ->
+b>=a ->
+Is_IR M ->
+matching_in (b::B) (a::A) M-> 
+ttqa M a < sq a ->
+matching_in (b::B) (a::A) (increase_quantb_by_one M m b a).
+Proof. intros H H0 H1 H2 H3 H4 Hsq. split. 
+      { split.
+        {  apply increase_quantb_by_one_matchable. all:auto;apply H4. }
+        { split. 
+          { intros. assert (ttqb (increase_quantb_by_one M m b a) b0 = 
+                         ttqb M b0).
+                         apply increase_quantb_by_one_ttqb. all:auto.
+                         rewrite H6. assert(In b0 (bids_of M)
+                         \/~In b0 (bids_of M)).
+                         eauto. destruct H7. apply H4. auto.
+                         apply ttqb_elim in H7. lia.
+          }
+          {
+          intros. 
+          destruct (a_eqb a a0) eqn:Haa0.
+          move /eqP in Haa0. subst a0. 
+          assert (ttqa (increase_quantb_by_one M m b a) a = 
+                         ttqa M a + 1).
+          apply increase_quantb_by_one_sqa_by_one. all:auto.
+          lia. move /eqP in Haa0.
+          destruct (a_eqb a0 (ask_of m)) eqn:Ha0m.
+          move /eqP in Ha0m. subst. 
+          eapply increase_quantb_by_one_ttqa_ofm with 
+          (M:=M)(b:=(bid_of m)) in Haa0. assert(In (ask_of m) (asks_of M)).
+          eauto. assert(ttqa M (ask_of m) <= sq (ask_of m)).
+          destruct H4. destruct H4. destruct H7. apply H8 in H0.
+          lia. lia. all:auto. 
+          move /eqP in Ha0m.
+          assert(ttqa (increase_quantb_by_one M m b a) a0 = ttqa M a0).
+          apply increase_quantb_by_one_ttqa. all:auto.
+          rewrite H6. assert(In a0 (asks_of M)
+                         \/~In a0 (asks_of M)).
+                         eauto. destruct H7. apply H4. auto.
+                         apply ttqa_elim in H7. lia.
+          
+          } } }  
+            { split. 
+              assert(bids_of (increase_quantb_by_one M m b a) [<=] bids_of M).
+              apply increase_quantb_by_one_bids_subset;auto.
+              assert(bids_of M [<=](b::B)). apply H4. eauto.
+              assert(asks_of (increase_quantb_by_one M m b a) [<=] (a::A)).
+              apply increase_quantb_by_one_asks_subset. all:auto.
+              apply H4.
+            }
+Qed.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(*#######################End of surgery Two########################*)
+
+
+
+
+
+
+
+
+
+
 (************************************************************************)
 
 (*########Surgeries for the existence of M'  = M - q matchings ############*)
@@ -1217,7 +1644,8 @@ Lemma exists_M0_reduced_bid_ask_matching (M:list fill_type) (B:list Bid)(A:list 
 matching_in (b::B) (a::A) M-> 
 ttq_ab M b a = (bq b) /\ ((sq a) = (bq b)) ->
 Is_IR M ->
-(exists M0, (matching_in B A M0) /\Is_IR M0/\(QM(M)=QM(M0) + (bq b))).
+(exists M0, (matching_in B A M0) /\Is_IR M0/\(QM(M)=QM(M0) + (bq b))/\
+(forall m : fill_type, In m M0 -> tq m > 0)).
 Proof. intros H H0 IR. exists (Remove_ab_trades M b a).
 split. 
   { split.
@@ -1271,8 +1699,9 @@ split.
   }
   { split.
   apply Remove_ab_trades_IR. apply IR.
-  destruct H0. rewrite<- H0.
-  apply Remove_ab_trades_QM.
+  destruct H0. rewrite<- H0. split.
+  apply Remove_ab_trades_QM. 
+   apply Remove_ab_trades_NZT. auto.
  } Qed.
 
 
@@ -1610,7 +2039,6 @@ Proof. intros.  split.
   { rewrite <- replace_bid_subset_ask. apply H. }
 } Qed.
 
-
 Lemma exists_M0_reduced_bid_uniform (M:list fill_type)(B:list Bid)(A:list Ask)(b:Bid)(a:Ask)
 (NDB:NoDup (idbs_of (b::B)))
 (NZT:forall m : fill_type, In m M -> tq m > 0):
@@ -1690,7 +2118,436 @@ auto.
 } Qed.
    
 
+Lemma exists_M0_reduced_bid_matching (M:list fill_type)(B:list Bid)(A:list Ask)(b:Bid)(a:Ask)
+(NDB:NoDup (idbs_of (b::B)))
+(NZT:forall m : fill_type, In m M -> tq m > 0):
+matching_in (b::B) (a::A) M-> 
+ttq_ab M b a = (sq a) ->
+((bq b) > (sq a)) -> 
+Is_IR M ->
+exists M0, (matching_in ((Mk_bid (bp b) (btime b) (bq b - (sq a)) (idb b))::B)
+A M0)
+/\(QM(M)=QM(M0) + (sq a)/\Is_IR M0 /\
+(forall m : fill_type, In m M0 -> tq m > 0)).
+Proof. intros. 
+set (b':={| bp := b; btime := btime b; bq := bq b - sq a; idb := idb b |}).
+exists (replace_bid (Remove_ab_trades M b a) b b').
+split. { apply replace_bid_matching1. apply idbs_of_nodup. simpl.
+      simpl in NDB. auto.
+      { split. (*Proof that matching *)
+        split.
+        apply Remove_ab_trades_matchable. apply H.
+        split. 
+        { intros. assert(ttqb (Remove_ab_trades M b a) b0 <= ttqb M b0).
+          apply Remove_ab_trades_ttq_le_b.
+          assert(ttqb M b0 <= bq b0). 
+          assert(In b0 (bids_of M)\/~In b0 (bids_of M)).
+          eauto. destruct H5. apply H. auto.
+          apply ttqb_elim in H5. lia. lia.
+        }
+        { intros. assert(ttqa (Remove_ab_trades M b a) a0 <= ttqa M a0).
+          apply Remove_ab_trades_ttq_le_a.
+          assert(ttqa M a0 <= sq a0). 
+          assert(In a0 (asks_of M)\/~In a0 (asks_of M)).
+          eauto. destruct H5. apply H. auto.
+          apply ttqa_elim in H5. lia. lia.
+        }
+        split. assert(bids_of (Remove_ab_trades M b a) [<=] bids_of M).
+        apply Remove_ab_trades_bids_subset.
+        assert(bids_of M [<=] (b::B)). apply H.
+        eauto.
+        assert(asks_of (Remove_ab_trades M b a) [<=] asks_of M).
+        apply Remove_ab_trades_asks_subset.
+        assert(asks_of M [<=] (a::A)).  apply H.
+        assert(~In a (asks_of (Remove_ab_trades M b a))).
+        apply Remove_ab_trades_a_notIn. auto. 
+        assert(In a (asks_of M)\/~In a (asks_of M)).
+        eauto. destruct H5. apply H. auto.
+        apply ttqa_elim in H5. lia. lia.
+        assert(asks_of (Remove_ab_trades M b a) [<=] (a::A)).
+        eauto. eauto.
+      }        
+      subst b'. 
+      simpl. assert (ttqb M b = (ttq_ab M b a) + (ttqb (Remove_ab_trades M b a) b)).
+      apply Remove_ab_trades_correct2b. 
+      assert(In b (bids_of M)\/~In b (bids_of M)).
+      eauto. destruct H4.
+      assert(ttqb M b <= bq b). apply H. auto. lia.
+       apply ttqb_elim in H4. lia. subst b'. simpl. auto. 
+    }
+    split.
+    { 
+     replace (QM (replace_bid (Remove_ab_trades M b a) b b')) with 
+     (QM (Remove_ab_trades M b a)). 
+     assert(QM M = QM (Remove_ab_trades M b a) + ttq_ab M b a). 
+     apply Remove_ab_trades_QM. lia.
+     apply replace_bid_QM.
+   }
+   split.
+   { apply replace_bid_IR. apply Remove_ab_trades_IR. apply H2.
+      subst b'. simpl. auto.
+   }
+   apply replace_bid_NZT.
+apply Remove_ab_trades_NZT.
+auto.
+Qed.
+
+
+
+
+
+
+
+
+
 (**************** case when the ask is partially traded *****************************)
+
+
+
+
+Fixpoint replace_ask  (M:list fill_type)(a a':Ask):=
+match M with 
+|nil => nil
+|m::M' =>match (a_eqb a (ask_of m)) with
+  |true => (Mk_fill (bid_of m) a' (tq m) (tp m))::replace_ask M' a a'
+  |false =>m::replace_ask M' a a'
+  end
+end.
+
+Lemma replace_ask_elim1 (M:list fill_type)(a a':Ask) :
+a=a' -> M = replace_ask M a a'.
+Proof.  intros. induction M as [|m' M']. simpl. auto.
+simpl. destruct (a_eqb a (ask_of m')) eqn: Hbm'.
+simpl. f_equal. subst a'. move /eqP in Hbm'.
+subst a. destruct m'. auto. auto. f_equal. auto. Qed.
+
+Lemma replace_ask_elim2 (M:list fill_type)(a a':Ask) :
+a<>a' -> ~In a (asks_of (replace_ask M a a')).
+Proof.  intros. induction M as [|m' M']. simpl. auto.
+simpl. destruct (a_eqb a (ask_of m')) eqn: Hbm'.
+simpl. eauto. simpl. intro. destruct H0. move /eqP in Hbm'.
+subst a. elim Hbm'. auto. eauto. Qed.
+
+
+Lemma replace_ask_subset_bid (M:list fill_type)(a a':Ask):
+bids_of M = bids_of (replace_ask M a a').
+Proof.
+revert a a'. induction M as [|m' M']. simpl. auto.
+intros. simpl. destruct (a_eqb a (ask_of m')) eqn: Hbm'.
+simpl. f_equal. apply IHM'.
+simpl. f_equal. apply IHM'. Qed.
+
+Lemma replace_ask_subset_prices (M:list fill_type)(a a':Ask):
+trade_prices_of M = trade_prices_of (replace_ask M a a').
+Proof.
+revert a a'. induction M as [|m' M']. simpl. auto.
+intros. simpl. destruct (a_eqb a (ask_of m')) eqn: Hbm'.
+simpl. f_equal. apply IHM'.
+simpl. f_equal. apply IHM'. Qed.
+
+Lemma replace_ask_subset_asks (M:list fill_type)(a a':Ask)(A:list Ask):
+asks_of M [<=] (a::A) -> asks_of (replace_ask M a a') [<=] (a'::A).
+Proof.
+revert a a' A. induction M as [|m' M']. simpl. auto.
+intros. simpl. destruct (a_eqb a (ask_of m')) eqn: Hbm'.
+simpl. simpl in H. assert(asks_of M' [<=] a :: A). 
+eauto.  eapply IHM' with(a:=a)(a':=a') in H0.
+unfold Subset. intros. destruct H1.
+simpl. auto. eauto. simpl. simpl in H.
+eapply Subset_elim1 in H as H1.
+destruct H1. move /eqP in Hbm'. subst a.
+elim Hbm'. auto.
+eapply Subset_elim2 in H. eapply IHM' with (a:=a)(a':=a') in H.
+unfold Subset.
+intros. simpl. destruct H1. right. subst a0. auto.
+unfold Subset in H. apply H in H1.
+destruct H1. left. auto. auto. Qed.
+
+Lemma replace_ask_matchable (M:list fill_type)(a a':Ask):
+All_matchable M -> Nat.eqb (sp a) (sp a')-> All_matchable (replace_ask M a a').
+Proof. induction M as [|m M']. simpl. auto.
+unfold All_matchable.  
+simpl. intros. 
+destruct (a_eqb a (ask_of m)) eqn: Hm. 
+{
+  move /eqP in Hm. subst a.
+  destruct H1. 
+  { subst m0. simpl.
+    specialize (H m). 
+    destruct H. auto. move /eqP in H0. lia.
+    move /eqP in H0. lia. 
+  }
+  eapply IHM' in H0.
+  unfold All_matchable in H0. apply H0 in H1. auto.
+  unfold All_matchable. intros. 
+  specialize (H m1) as H3. 
+  destruct H3. right. auto. auto. lia.
+}
+{
+simpl in H1. destruct H1.
+move /eqP in Hm. subst m. auto.
+eapply IHM' in H0.  
+apply H0 in H1. auto. 
+unfold All_matchable. intros.
+specialize (H m1) as H3.
+destruct H3. auto. auto. lia.
+} Qed. 
+
+
+Lemma replace_ask_ttqa_a_a' (M:list fill_type)(a a':Ask):
+~In a' (asks_of M) -> ttqa M a =ttqa (replace_ask M a a') a'.
+Proof. induction M as [|m M']. simpl. auto.
+simpl. 
+destruct (a_eqb a (ask_of m)) eqn: Hm. 
+{ simpl. destruct (a_eqb a' a') eqn:Hbb'.
+  intros. assert(~ In a' (asks_of M')).
+  unfold not in H. auto. apply IHM' in H0. lia.
+  move /eqP in Hbb'. elim Hbb'. auto.
+}
+{ simpl. destruct (a_eqb a' (ask_of m)) eqn:Hbm.
+  intros. unfold not in H. 
+  move /eqP in Hbm. symmetry in Hbm. 
+  destruct H. auto. 
+  intros. apply IHM'. auto.
+}
+Qed. 
+
+
+
+Lemma replace_ask_ttqa_a0 (M:list fill_type)(a a' a0:Ask):
+a0<>a'/\a0<>a -> ttqa M a0 = ttqa (replace_ask M a a') a0.
+Proof. induction M as [|m M']. simpl. auto.
+simpl. 
+destruct (a_eqb a0 (ask_of m)) eqn: Hm. 
+{ simpl. destruct (a_eqb a (ask_of m)) eqn:Hbm.
+  intros. destruct H. 
+  move /eqP in Hbm. move /eqP in Hm. 
+  subst. elim H0. auto. 
+  intros. destruct H. simpl.
+  rewrite Hm. rewrite IHM'.
+  auto. lia. 
+}
+{ destruct (a_eqb a (ask_of m)) eqn:Hbm.
+  intros. simpl. destruct H. 
+  destruct (a_eqb a0 a') eqn:Hb.
+  move /eqP in Hb. subst. elim H. auto. 
+  apply IHM'. auto. simpl.
+  rewrite Hm. auto. 
+}
+Qed.
+ 
+Lemma replace_ask_ttqb (M:list fill_type)(b:Bid)(a a':Ask):
+ttqb M b = ttqb (replace_ask M a a') b.
+Proof. induction M as [|m M']. simpl. auto.
+simpl. 
+destruct (b_eqb b (bid_of m)) eqn: Hm. 
+{ destruct (a_eqb a (ask_of m)) eqn:Hbm.
+  simpl. rewrite Hm. lia. 
+  simpl.
+  rewrite Hm. lia.
+}
+{ destruct (a_eqb a (ask_of m)) eqn:Hbm.
+  simpl. rewrite Hm. lia. 
+  simpl.
+  rewrite Hm. lia.
+}
+Qed.
+
+Lemma replace_ask_Uniform (M:list fill_type)(a a':Ask):
+Uniform M -> Uniform (replace_ask M a a').
+Proof. unfold Uniform. 
+assert(trade_prices_of M = trade_prices_of (replace_ask M a a')).
+eapply replace_ask_subset_prices.
+rewrite H. auto. Qed.
+
+
+Lemma replace_ask_IR (M:list fill_type)(a a':Ask):
+Is_IR M -> a' <= a -> Is_IR (replace_ask M a a').
+Proof. induction M as [|m M']. simpl. auto.
+unfold Is_IR.  
+simpl. intros. 
+destruct (a_eqb a (ask_of m)) eqn: Hm. 
+{
+  move /eqP in Hm. subst a.
+  destruct H1. 
+  { subst m0. unfold rational.
+    simpl.
+    specialize (H m). 
+    destruct H. auto. 
+    lia.
+  }
+  eapply IHM' in H0.
+  unfold Is_IR in H0. apply H0 in H1. auto.
+  unfold Is_IR. intros. 
+  specialize (H m1) as H3. 
+  destruct H3. right. auto. auto.
+}
+{
+simpl in H1. destruct H1.
+move /eqP in Hm. subst m. auto.
+eapply IHM' in H0.  
+apply H0 in H1. auto. 
+unfold Is_IR. intros.
+specialize (H m1) as H3.
+destruct H3. auto. auto. 
+} Qed. 
+
+Lemma replace_ask_QM (M:list fill_type)(a a':Ask):
+QM(M) = QM(replace_ask M a a').
+Proof. induction M as [|m M']. simpl. auto.
+simpl. destruct (a_eqb a (ask_of m)) eqn: Hm. simpl. lia.
+simpl. lia. Qed.
+
+Lemma replace_ask_NZT (M:list fill_type)(a a':Ask)
+(NZT:forall m : fill_type, In m M -> tq m > 0):
+(forall m : fill_type, In m (replace_ask M a a') -> tq m > 0).
+Proof. induction M as [|m M']. simpl. auto.
+simpl. destruct (a_eqb a (ask_of m)) eqn: Hm. simpl.
+intros. destruct H. subst m0. simpl. eauto.
+apply IHM'. eauto. auto. 
+simpl. intros. destruct H. subst m0.
+apply NZT. eauto. apply IHM'.
+eauto. auto. Qed.
+
+Lemma replace_ask_matching1 (M:list fill_type)(B:list Bid)(A:list Ask)(a a':Ask)
+(NDA:NoDup (a'::A)):
+matching_in B (a::A) M-> ttqa M a <= sq a' -> Nat.eqb (sp a) (sp a') ->
+matching_in B (a'::A) (replace_ask M a a').
+Proof. intros.  split.
+{ split. 
+  { apply replace_ask_matchable. apply H. auto. }
+  { split. 
+    {
+    intros. replace (ttqb (replace_ask M a a') b) with (ttqb M b).
+    assert(In b (bids_of M)\/~In b (bids_of M)).
+    eauto. destruct H3. apply H. auto.
+    apply ttqb_elim in H3. lia. apply replace_ask_ttqb.
+    }
+    { intros. destruct (a_eqb a a') eqn:Hbb'.
+      { move /eqP in Hbb'. apply replace_ask_elim1 with (M:=M) in Hbb'.
+        rewrite <- Hbb'. assert(In a0 (asks_of M)\/~In a0 (asks_of M)).
+        eauto. destruct H3. apply H. auto.
+        apply ttqa_elim in H3. lia.
+      }
+      { destruct (a_eqb a0 a') eqn:Hb0b';destruct (a_eqb a0 a) eqn:Hb0b.
+        {
+          move /eqP in Hb0b'. move /eqP in Hb0b.
+          move /eqP in Hbb'. subst. elim Hbb'. auto.
+        }
+        {
+          move /eqP in Hbb'. apply replace_ask_elim2 with (M:=M) in Hbb'.
+          move /eqP in Hb0b'. subst. replace (ttqa (replace_ask M a a') a')
+          with (ttqa M a). auto. apply replace_ask_ttqa_a_a'.
+          assert((asks_of M)[<=](a::A)). apply H. intro.
+          assert(In a' (a :: A)). eauto. destruct H5. 
+          move /eqP in Hb0b. subst. elim Hb0b. auto.
+          apply nodup_elim2 in NDA. eauto.
+        }
+        {
+          move /eqP in Hbb'. apply replace_ask_elim2 with (M:=M) in Hbb'.
+          move /eqP in Hb0b. subst. unfold not in Hbb'. 
+          apply Hbb' in H2. elim H2.
+        }
+        {
+          move /eqP in Hb0b'. move /eqP in Hb0b.
+          move /eqP in Hbb'. replace (ttqa (replace_ask M a a') a0) 
+          with (ttqa M a0). assert(In a0 (asks_of M)\/~In a0 (asks_of M)).
+          eauto. destruct H3. apply H. auto.
+          apply ttqa_elim in H3. lia.
+          eapply replace_ask_ttqa_a0. auto.
+         }
+       }
+    }
+  }
+}
+{
+  split.
+  { rewrite <- replace_ask_subset_bid. apply H. }
+  { apply replace_ask_subset_asks. apply H. }
+
+} Qed.
+
+
+Lemma exists_M0_reduced_ask_matching (M:list fill_type)(B:list Bid)(A:list Ask)(b:Bid)(a:Ask)
+(NDA:NoDup (idas_of (a::A)))
+(NZT:forall m : fill_type, In m M -> tq m > 0):
+matching_in (b::B) (a::A) M-> 
+ttq_ab M b a = (bq b) ->
+((sq a) > (bq b)) -> 
+Is_IR M ->
+exists M0, (matching_in B
+((Mk_ask (sp a) (stime a) (sq a - (bq b)) (ida a))::A) M0)
+/\(QM(M)=QM(M0) + (bq b)/\Is_IR M0/\
+(forall m : fill_type, In m M0 -> tq m > 0)).
+Proof. intros. 
+set (a':={| sp := a; stime := stime a; sq := sq a - bq b; ida := ida a |}).
+exists (replace_ask (Remove_ab_trades M b a) a a').
+split. { apply replace_ask_matching1. apply idas_of_nodup. simpl.
+      simpl in NDA. auto.
+      { split. (*Proof that matching *)
+        split.
+        apply Remove_ab_trades_matchable. apply H.
+        split. 
+        { intros. assert(ttqb (Remove_ab_trades M b a) b0 <= ttqb M b0).
+          apply Remove_ab_trades_ttq_le_b.
+          assert(ttqb M b0 <= bq b0). 
+          assert(In b0 (bids_of M)\/~In b0 (bids_of M)).
+          eauto. destruct H5. apply H. auto.
+          apply ttqb_elim in H5. lia. lia.
+        }
+        { intros. assert(ttqa (Remove_ab_trades M b a) a0 <= ttqa M a0).
+          apply Remove_ab_trades_ttq_le_a.
+          assert(ttqa M a0 <= sq a0). 
+          assert(In a0 (asks_of M)\/~In a0 (asks_of M)).
+          eauto. destruct H5. apply H. auto.
+          apply ttqa_elim in H5. lia. lia.
+        }
+        split. 
+        { assert(bids_of (Remove_ab_trades M b a) [<=] bids_of M).
+          apply Remove_ab_trades_bids_subset.
+          assert(bids_of M [<=] (b::B)).  apply H.
+          assert(~In b (bids_of (Remove_ab_trades M b a))).
+          apply Remove_ab_trades_b_notIn. auto. 
+          assert(In b (bids_of M)\/~In b (bids_of M)).
+          eauto. destruct H5. apply H. auto.
+          apply ttqb_elim in H5. lia. lia.
+          assert(bids_of (Remove_ab_trades M b a) [<=] (b::B)).
+          eauto. eauto.
+        }
+        { assert(asks_of (Remove_ab_trades M b a) [<=] asks_of M).
+          apply Remove_ab_trades_asks_subset.
+          assert(asks_of M [<=] (a::A)). apply H.
+          eauto.
+        }        
+      }        
+      subst a'. 
+      simpl. assert (ttqa M a = (ttq_ab M b a) + (ttqa (Remove_ab_trades M b a) a)).
+      apply Remove_ab_trades_correct2a. 
+      assert(In a (asks_of M)\/~In a (asks_of M)).
+      eauto. destruct H4.
+      assert(ttqa M a <= sq a). apply H. auto. lia.
+       apply ttqa_elim in H4. lia. subst a'. simpl. auto. 
+    }
+    split.
+    { 
+     replace (QM (replace_ask (Remove_ab_trades M b a) a a')) with 
+     (QM (Remove_ab_trades M b a)). 
+     assert(QM M = QM (Remove_ab_trades M b a) + ttq_ab M b a). 
+     apply Remove_ab_trades_QM. lia.
+     apply replace_ask_QM.
+   }
+   split.
+   { apply replace_ask_IR. apply Remove_ab_trades_IR. apply H2.
+      subst a'. simpl. auto.
+   }
+   apply replace_ask_NZT.
+apply Remove_ab_trades_NZT.
+auto.
+Qed.
+
+
+
+
 
 Lemma exists_M0_reduced_ask_uniform (M:list fill_type)(B:list Bid)(A:list Ask)(b:Bid)(a:Ask)
 (NDA:NoDup (idas_of (a::A)))
@@ -1702,8 +2559,74 @@ exists M0, (Is_uniform M0 B
 ((Mk_ask (sp a) (stime a) (sq a - (bq b)) (ida a))::A))
 /\(QM(M)=QM(M0) + (bq b)/\
 (forall m : fill_type, In m M0 -> tq m > 0)).
-Proof. Admitted.
-
-(*TODO: The proof of the above theorem is very similar to the proof of similar theorem for bid (done above) *)
+Proof. intros. 
+set (a':={| sp := a; stime := stime a; sq := sq a - bq b; ida := ida a |}).
+exists (replace_ask (Remove_ab_trades M b a) a a').
+split. 
+  { split.
+    { apply replace_ask_Uniform. apply Remove_ab_trades_Uniform. apply H. }
+    split. 
+{ apply replace_ask_matching1. apply idas_of_nodup. simpl.
+      simpl in NDA. auto.
+      { split. (*Proof that matching *)
+        split.
+        apply Remove_ab_trades_matchable. apply H.
+        split. 
+        { intros. assert(ttqb (Remove_ab_trades M b a) b0 <= ttqb M b0).
+          apply Remove_ab_trades_ttq_le_b.
+          assert(ttqb M b0 <= bq b0). 
+          assert(In b0 (bids_of M)\/~In b0 (bids_of M)).
+          eauto. destruct H4. apply H. auto.
+          apply ttqb_elim in H4. lia. lia.
+        }
+        { intros. assert(ttqa (Remove_ab_trades M b a) a0 <= ttqa M a0).
+          apply Remove_ab_trades_ttq_le_a.
+          assert(ttqa M a0 <= sq a0). 
+          assert(In a0 (asks_of M)\/~In a0 (asks_of M)).
+          eauto. destruct H4. apply H. auto.
+          apply ttqa_elim in H4. lia. lia.
+        }
+        split. 
+        { assert(bids_of (Remove_ab_trades M b a) [<=] bids_of M).
+          apply Remove_ab_trades_bids_subset.
+          assert(bids_of M [<=] (b::B)).  apply H.
+          assert(~In b (bids_of (Remove_ab_trades M b a))).
+          apply Remove_ab_trades_b_notIn. auto. 
+          assert(In b (bids_of M)\/~In b (bids_of M)).
+          eauto. destruct H4. apply H. auto.
+          apply ttqb_elim in H4. lia. lia.
+          assert(bids_of (Remove_ab_trades M b a) [<=] (b::B)).
+          eauto. eauto.
+        }
+        { assert(asks_of (Remove_ab_trades M b a) [<=] asks_of M).
+          apply Remove_ab_trades_asks_subset.
+          assert(asks_of M [<=] (a::A)). apply H.
+          eauto.
+        }        
+      }        
+      subst a'. 
+      simpl. assert (ttqa M a = (ttq_ab M b a) + (ttqa (Remove_ab_trades M b a) a)).
+      apply Remove_ab_trades_correct2a. 
+      assert(In a (asks_of M)\/~In a (asks_of M)).
+      eauto. destruct H3.
+      assert(ttqa M a <= sq a). apply H. auto. lia.
+       apply ttqa_elim in H3. lia. subst a'. simpl. auto. 
+    }
+   { apply replace_ask_IR. apply Remove_ab_trades_IR. apply H.
+      subst a'. simpl. auto.
+   }
+   }
+   split.
+    { 
+     replace (QM (replace_ask (Remove_ab_trades M b a) a a')) with 
+     (QM (Remove_ab_trades M b a)). 
+     assert(QM M = QM (Remove_ab_trades M b a) + ttq_ab M b a). 
+     apply Remove_ab_trades_QM. lia.
+     apply replace_ask_QM.
+   }
+   apply replace_ask_NZT.
+   apply Remove_ab_trades_NZT.
+   auto.
+Qed.
 
 End Transform.

@@ -11,7 +11,7 @@ We also have a crtified OCaml, Haskell programs for matching buyers with seller 
 # Coq files details: We have formalized four mazor aspects of matching at the exchanges. 
 1. To the the main threorems for the correctness of fairness, go to the file MQFAIR.v
 2. To have a look at UM process and its correctness theorems, please have a look at MQUM.v. The UM process is used at the exchanges.
-3. For MM process, go to the file MQMM.v (To be updated soon with comments and automations).
+3. For MM process, go to the file MQMM.v.
 4. The MQBound.v file contains combinatorial results on the double sided auctions with multiplicity. 
 (To be updated soon with comments and automations)
 

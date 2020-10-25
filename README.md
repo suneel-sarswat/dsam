@@ -8,12 +8,11 @@ We also have a crtified OCaml, Haskell programs for matching buyers with seller 
 
 #How to use the coq formalization: To compile the code please run the executable shell script auction.sh
 
-# Coq files details: We have formalized four mazor aspects of matching at the exchanges. 
+# Coq files details: We have formalized matching at the financial exchanges. 
 1. To the the main threorems for the correctness of fairness, go to the file MQFAIR.v
 2. To have a look at UM process and its correctness theorems, please have a look at MQUM.v. The UM process is used at the exchanges.
 3. For MM process, go to the file MQMM.v.
-4. The MQBound.v file contains combinatorial results on the double sided auctions with multiplicity. 
-(To be updated soon with comments and automations)
+4. The Bound.v file contains some combinatorial results on matchings. 
 
 Following are some of the important obseravtios about some of the pre-conditions.
 

@@ -9,10 +9,17 @@ We also have a crtified OCaml, Haskell programs for matching buyers with seller 
 #How to use the coq formalization: To compile the code please run the executable shell script auction.sh
 
 # Coq files details: We have formalized matching at the financial exchanges. 
-1. To the the main threorems for the correctness of fairness, go to the file MQFAIR.v
-2. To have a look at UM process and its correctness theorems, please have a look at MQUM.v. The UM process is used at the exchanges.
+0. All the important results, processes and programs are extracted in Demo.v file. To run this file, please 
+run auction.sh file from you terminal ($ ./auction.sh). This file may take 5-6 minutes. Once auctions.sh succesfully 
+completed, please run coqc Demo.v . In sort from your terminal:
+
+> ./auction.sh
+> coqc Demo.v 
+
+1. The main lemmas for the correctness of fairness are in the file MQFAIR.v
+2. The UM process and its correctness theorems are in MQUM.v. The UM process is used at the exchanges.
 3. For MM process, go to the file MQMM.v.
-4. The Bound.v file contains some combinatorial results on matchings. 
+4. The Bound.v file contains combinatorial results on matchings. 
 
 Following are some of the important obseravtios about some of the pre-conditions.
 

@@ -55,6 +55,9 @@ coqc mMM.v
 
 coqc MQMM.v
 
+printf ‘Bound
+coqc Bound.v
+
 echo \
 
 

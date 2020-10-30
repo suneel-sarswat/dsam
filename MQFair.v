@@ -498,7 +498,8 @@ Proof.
           intros. unfold FAIR. unfold Is_fair.
           assert(HM':matching_in B (sort by_sp A) (sort m_sp M)).
           { 
-          eapply match_inv with (A':=(sort by_sp A)) (M':=(sort m_sp M))(B':=B) in H.
+          eapply match_inv with (A':=(sort by_sp A)) 
+          (M':=(sort m_sp M))(B':=B) in H.
           auto. eauto. eauto. eauto. }
           assert(M0match':matching_in B A (FOA (sort m_sp M) (sort by_sp A))).
           {
@@ -513,16 +514,20 @@ Proof.
           assert(QM (FOB M0 (sort by_dbp B))=QM(M0)). symmetry.
           apply FOB_size with (A:=A). eauto. eauto.
           { (*NZT*) intros. assert(In m (FOA (sort m_sp M) (sort by_sp A))).
-                eauto. eapply FOA_NZT with (M:=(sort m_sp M))(A:=(sort by_sp A)).
+                eauto. eapply FOA_NZT with 
+                (M:=(sort m_sp M))(A:=(sort by_sp A)).
                 eauto. eauto.  eauto. auto.
           }
           {
-          eapply match_inv with (A':=A) (M':=M0)(B':=(sort by_dbp B)) in M0match'. auto.
-          subst M0. eauto. auto. auto. }
-          assert(QM (FOA (sort m_sp M) (sort by_sp A))=QM(sort m_sp M)). symmetry.
-          apply FOA_size with (B:=B). eauto. eauto. eauto. auto.
-          assert(QM(M) = QM((sort m_sp M))).
-          apply QM_perm. eauto. lia.
+                eapply match_inv with (A':=A) 
+                (M':=M0)(B':=(sort by_dbp B)) in M0match'. auto.
+                subst M0. eauto. auto. auto. 
+          }
+         assert(QM (FOA (sort m_sp M) 
+         (sort by_sp A))=QM(sort m_sp M)). symmetry.
+         apply FOA_size with (B:=B). eauto. eauto. eauto. auto.
+         assert(QM(M) = QM((sort m_sp M))).
+         apply QM_perm. eauto. lia.
        Qed.
        
 Theorem FAIR_correct (M: list fill_type)(B: list Bid)(A:list Ask)(NDB: NoDup B)
@@ -546,11 +551,6 @@ Proof. intros. exists (FAIR M B A). apply FAIR_correct. all:auto. Qed.
 
 End Fair.
 
-Require Extraction.
-Extraction  Language Haskell.
-Recursive Extraction FAIR.
-Extraction  Language OCaml.
-Recursive Extraction FAIR.
 
 
 

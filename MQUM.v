@@ -74,6 +74,8 @@ intros. split. apply H0 in H2.
 apply H2. destruct H1. split. eauto. eauto. auto. auto.
 apply H0 in H2.
 apply H2. destruct H1. split. eauto. eauto. auto. auto. Qed.
+ 
+
 
 (*Following Theorem says the The processs UM is Individual Rational 
 and Uniform matching. Note that Is_uniform is defined as IR 
@@ -196,9 +198,4 @@ Qed.
 End UM_Process.
 
 
-Require Extraction.
-Extraction  Language Haskell.
-Recursive Extraction UM.
-Extraction  Language OCaml.
-Recursive Extraction UM.
 

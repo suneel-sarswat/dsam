@@ -26,6 +26,49 @@ Definition MM B A:=
 
 
 
+Lemma MM_aux_NZT (B:list Bid)(A:list Ask)(b:Bid)(a:Ask)(tb ta:nat)
+(NZB: forall b0, In b0 (b::B) -> (bq b0)>0)
+(NZA: forall a0, In a0 (a::A) -> (sq a0)>0):
+(tb < bq b)/\(ta < sq a) -> 
+(forall m, In m ((MM_aux (b::B) (a::A) tb ta)) -> tq m >0).
+Proof. intros. destruct H. funelim (MM_aux (b::B) (a::A) tb ta).
+rewrite <- Heqcall in H5. destruct (Nat.leb a b) eqn:Hab.
+destruct (Nat.eqb (bq b - tb) (sq a - ta)) eqn:Heq.
+{ destruct H5. subst m. simpl. lia. 
+  destruct l. case l0 eqn:Hl0. simpl in H5. elim H5.
+  simp MM_aux in H5. elim H5. case l0 eqn:Hl0. 
+  simp MM_aux in H5. elim H5. apply H in H5. all:auto. 
+  apply NZB. auto. apply NZA. auto.
+}
+{  destruct (Nat.leb (bq b - tb) (sq a - ta)) eqn:Hle.
+   { destruct H5. subst m. simpl. lia. 
+  destruct l.
+  simp MM_aux in H5. elim H5. apply H0 in H5. all:auto. 
+  apply NZB. auto. move /leP in Hle. 
+  move /eqP in Heq. lia.
+   }
+   { destruct H5. subst m. simpl. lia. 
+  destruct l0.
+  simp MM_aux in H5. elim H5. apply H1 in H5. all:auto. 
+  move /leP in Hle. lia. apply NZA. auto.
+   }
+ }
+ {   destruct l0.
+  simp MM_aux in H5. elim H5. apply H2 in H5. all:auto. 
+  apply NZA. auto.
+ } Qed.
+ 
+Lemma MM_NZT (B:list Bid)(A:list Ask)
+(NZB: forall b, In b B -> (bq b)>0)
+(NZA: forall a, In a A -> (sq a)>0):
+(forall m, In m ((MM_aux B A 0 0)) -> tq m >0).
+Proof. destruct B. simp MM_aux. simpl. 
+intros. elim H. destruct A. simp MM_aux.
+simpl. intros. elim H. 
+apply MM_aux_NZT with (b:=b)(a:=a).
+all:auto. split. apply NZB. auto. apply NZA. auto. Qed.
+
+ 
 Theorem MM_Is_IR_Matching (B:list Bid)(A:list Ask)
 (NZB: forall b, In b B -> (bq b)>0)
 (NZA: forall a, In a A -> (sq a)>0)
@@ -76,12 +119,19 @@ Qed.
 
 Definition MM_FAIR B A := FAIR (MM B A) B A.
 
+
+Theorem MM_FAIR_correct (B:list Bid)(A:list Ask)
+(NZB: forall b, In b B -> (bq b)>0)
+(NZA: forall a, In a A -> (sq a)>0)
+(NDA:NoDup (idas_of A))
+(NDB:NoDup (idbs_of B))
+(Hnti: (antisymmetric by_dsp)/\(antisymmetric by_dbp)/\(antisymmetric by_sp )):
+Is_fair (MM_FAIR B A) B A.
+Proof. apply FAIR_is_fair. all:auto. 
+       apply MM_NZT. eauto. eauto.
+       split. apply Hnti. apply Hnti. apply MM_Is_Matching.
+       all:auto. Qed.
+
 End MM_Process.
 
-
-Require Extraction.
-Extraction  Language Haskell.
-Recursive Extraction MM_FAIR.
-Extraction  Language OCaml.
-Recursive Extraction MM_FAIR.
 

@@ -251,6 +251,52 @@ Lemma idbs_of_nodup (B: list Bid):
   eauto. auto. Qed.
 
 
+Lemma count_in_deleted_idbs (b: Bid)(B: list Bid):
+  In b B -> count (idb b) (idbs_of B) = S (count (idb b) (idbs_of (delete b B))).
+Proof. { induction B.
+       { simpl. auto. }
+       { intro h1. destruct (b == a) eqn: h2.
+         { simpl. rewrite h2. move /eqP in h2.
+           subst a. simpl. replace (Nat.eqb (idb b) (idb b)) with true. auto. auto. }
+         { assert (h1a: In b B).
+           { move /eqP in h2. eapply element_list with (b:=b)(a:=a). auto. exact. }
+           replace (delete b (a :: B)) with (a :: (delete b B)).
+           { simpl. destruct (Nat.eqb (idb b) (idb a)) eqn: h3.
+             { apply IHB in h1a as h1b. rewrite h1b. auto. }
+             { auto. } }
+           { simpl. rewrite h2. auto. } } } } Qed.
+
+
+Lemma included_B_imp_included_idbs (B1 B2: list Bid): included B1 B2 ->
+                                                    included (idbs_of B1) (idbs_of B2).
+Proof. { revert B2. induction B1 as [| b1].
+       { simpl. auto. }
+       { intros B2 h1.
+         assert (h2: In b1 B2). eauto.
+         assert (h3: included B1 (delete b1 B2)). eauto.
+         assert (h3a: included (idbs_of B1) (idbs_of (delete b1 B2))).
+         { auto. }
+         assert(h4:count (idb b1)(idbs_of B2)= S (count (idb b1) (idbs_of (delete b1 B2)))).
+         { eauto using count_in_deleted_idbs. }
+         eapply included_intro.
+         intro x.  simpl. destruct (Nat.eqb x (idb b1)) eqn: C1.
+         { (* ---- C1: x = b1 ---- *)
+           move /eqP in C1. subst x.
+           rewrite h4.
+           eapply included_elim in h3a  as h3b. instantiate (1 := idb b1) in h3b.
+           lia. }
+         { (*----- C1: x <> b1 ---- *)
+           assert (h3b: included B1 B2). eapply included_elim4; apply h1. 
+           apply IHB1 in h3b as h3c. auto. } } } Qed.
+
+
+       
+Lemma idb_perm (B B': list Bid): perm B B' -> perm (idbs_of B) (idbs_of B').
+Proof. { intro H. unfold perm in H. move /andP in H. destruct H.
+         unfold perm. apply /andP. split. all: eapply included_B_imp_included_idbs;exact. } Qed.
+
+
+
 (* #################### Nodup id -> nodup Ask ###################*)
 
 Fixpoint idas_of (A: list Ask): (list nat):=
@@ -289,6 +335,52 @@ Lemma idas_of_nodup (A: list Ask):
   apply nodup_intro. auto. assert(NoDup (idas_of A')).
   eauto. auto. Qed.
   
+  Lemma count_in_deleted_idas (a: Ask)(A: list Ask):
+  In a A -> count (ida a) (idas_of A) = S (count (ida a) (idas_of (delete a A))).
+  Proof. { induction A.
+       { simpl. auto. }
+       { intro h1. destruct (a == a0) eqn: h2.
+         { simpl. rewrite h2. move /eqP in h2.
+           subst a0. simpl. replace (Nat.eqb (ida a) (ida a)) with true. auto. auto. }
+         { assert (h1a: In a A).
+           { move /eqP in h2. eapply element_list with (b:=a)(a:=a0). auto. exact. }
+           replace (delete a (a0 :: A)) with (a0 :: (delete a A)).
+           { simpl. destruct (Nat.eqb (ida a) (ida a0)) eqn: h3.
+             { apply IHA in h1a as h1b. rewrite h1b. auto. }
+             { auto. } }
+           { simpl. rewrite h2. auto. } } } } Qed.
+
+
+Lemma included_A_imp_included_idas (A1 A2: list Ask): included A1 A2 ->
+                                                    included (idas_of A1) (idas_of A2).
+Proof. { revert A2. induction A1 as [| a1].
+       { simpl. auto. }
+       { intros A2 h1.
+         assert (h2: In a1 A2). eauto.
+         assert (h3: included A1 (delete a1 A2)). eauto.
+         assert (h3a: included (idas_of A1) (idas_of (delete a1 A2))).
+         { auto. }
+         assert(h4:count (ida a1)(idas_of A2)= S (count (ida a1) (idas_of (delete a1 A2)))).
+         { eauto using count_in_deleted_idas. }
+         eapply included_intro.
+         intro x.  simpl. destruct (Nat.eqb x (ida a1)) eqn: C1.
+         { (* ---- C1: x = b1 ---- *)
+           move /eqP in C1. subst x.
+           rewrite h4.
+           eapply included_elim in h3a  as h3b. instantiate (1 := ida a1) in h3b.
+           lia. }
+         { (*----- C1: x <> b1 ---- *)
+           assert (h3b: included A1 A2). eapply included_elim4; apply h1. 
+           apply IHA1 in h3b as h3c. auto. } } } Qed.
+
+
+       
+Lemma ida_perm (A A': list Ask): perm A A' -> perm (idas_of A) (idas_of A').
+Proof. { intro H. unfold perm in H. move /andP in H. destruct H.
+         unfold perm. apply /andP. split. all: eapply included_A_imp_included_idas;exact. } Qed.
+
+
+
 Hint Resolve idas_of_nodup idbs_of_nodup idas_of_intro1 idbs_of_intro1: core.
 
 

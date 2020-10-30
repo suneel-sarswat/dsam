@@ -10,8 +10,9 @@ We also have a certified OCaml, Haskell programs for matching buyers with seller
 
 # Coq files details: We have formalized matching at the financial exchanges. 
 0. All the important results, processes and programs are extracted in Demo.v file. To run this file, please 
-run auction.sh file from you terminal ($ ./auction.sh). This file may take 5-6 minutes. Once auctions.sh is successfully 
-completed, please run "coqc Demo.v" from your terminal. In short, type the following command from your terminal:
+run auction.sh file from you terminal ($ ./auction.sh). This file may take 5-6 minutes to compile. 
+Once auctions.sh is successfully completed, please run "coqc Demo.v" from your terminal. In short, 
+type the following command from your terminal:
 
 > ./auction.sh;
 > coqc Demo.v 
@@ -30,7 +31,7 @@ These assertions below are denoted as 'NZB' and 'NZA' respectively.
 
 Note2: Since no bid or asks is of non-zero quantity a matching can be
 assumed to have non-zero transactions. This assertion is represented as
-NZT.
+'NZT'.
 
 Note3: Each bid or ask is assigned a unique time stamp and unique id 
 on arrival. So it is easy to see that we do not have two bids or asks with 

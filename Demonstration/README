@@ -1,0 +1,10 @@
+The directory 'exchange_inputs_outputs' contains all the input data (bids and asks) and all the output data (trades). For each stock si (index i from 1 to 100) in the 'stockid' file, there are three files in the 'exchange_inputs_outputs' directory: 'si.bid', 'si.ask' and 'si.trade'. The files 'si.bid' and 'si.ask' contain bids and asks (inputs) and the file 'si.trade' contains the trade (exchange outputs) for the stock si. The ids of these stocks (i.e. s1, s2, ..., s100) are stored in file named 'stockid' files, from where ocaml programs 'Compare.ml' and 'Create.ml' reads the names of the stocks to process.
+
+The 'certified.ml' contains extracted codes from coq formaliztion. 
+
+The file 'Print.ml' contains scripts for coverting data structures and printing the outputs. 
+
+The file 'CompileAndRunAll.sh' to compile/build everything from terminal; "$ sh CompileAndRunAll.sh", which will create two binanry files 'Compare' and 'Create' and also run them.
+
+The certified outputs will be created by CompileAndRunAll.sh in the directory 'certifired_directory'.
+

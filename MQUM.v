@@ -19,6 +19,9 @@ Require Export mUM.
 Section UM_Process.
 
 
+Hypothesis unique_timestampbid:forall b1 b2, (btime b1 = btime b2) -> b1 = b2.
+Hypothesis unique_timestampask:forall s1 s2, (stime s1 = stime s2) -> s1 = s2.
+
 (*
 Note1: It is natural to believe that the bids and asks comes with 
 non-zero quanttity. It is easy to ensure that all the zero quantity bids
@@ -67,13 +70,14 @@ Lemma fair_sort (M:list fill_type)(B:list Bid)(A:list Ask):
 Is_fair M (sort by_dbp B) (sort by_sp A) -> Is_fair M B A.
 Proof. unfold Is_fair. unfold fair_on_asks. unfold fair_on_bids.
 intros. destruct H. split. intros. split. apply H in H2.
-apply H2. destruct H1. split. eauto. eauto. auto. auto.
+apply H2. destruct H1. split. eauto. eauto. auto. auto. auto.
 apply H in H2.
-apply H2. destruct H1. split. eauto. eauto. auto. auto.
+apply H2. destruct H1. split. eauto. eauto. auto. auto. auto.
 intros. split. apply H0 in H2.
-apply H2. destruct H1. split. eauto. eauto. auto. auto.
+apply H2. destruct H1. split. eauto. split. destruct H5.  eauto. 
+apply H5. auto. auto.
 apply H0 in H2.
-apply H2. destruct H1. split. eauto. eauto. auto. auto. Qed.
+apply H2. destruct H1. destruct H5. split. eauto. eauto. auto. auto. Qed.
  
 
 
@@ -84,8 +88,7 @@ Theorem UM_Is_Uniform (B:list Bid)(A:list Ask)
 (NZB: forall b, In b B -> (bq b)>0)
 (NZA: forall a, In a A -> (sq a)>0)
 (NDA:NoDup (idas_of A))
-(NDB:NoDup (idbs_of B))
-(Hanti: (antisymmetric by_sp)/\(antisymmetric by_dbp)):
+(NDB:NoDup (idbs_of B)):
 Is_uniform (UM B A) B A.
 Proof. intros. intros. assert(HA:Sorted by_sp (sort by_sp A)).
        apply sort_correct. apply by_sp_P. apply by_sp_P.
@@ -99,7 +102,7 @@ Proof. intros. intros. assert(HA:Sorted by_sp (sort by_sp A)).
                       { unfold All_matchable. intros.
                          eapply UM_aux_is_Ind_Rat with (B:=(sort by_dbp B)) in HA.
                         unfold Is_IR in HA. unfold UM in H. apply HA in H.
-                        unfold rational in H. lia. auto.
+                        unfold rational in H. lia. auto. auto. auto.
                       }
                       { split.
                        { intros. unfold UM.
@@ -107,7 +110,7 @@ Proof. intros. intros. assert(HA:Sorted by_sp (sort by_sp A)).
                          (UM_aux (sort by_dbp B) (sort by_sp A) 0 0)
                          (uniform_price (sort by_dbp B) (sort by_sp A))) b) with 
                          (ttqb (UM_aux (sort by_dbp B) (sort by_sp A) 0 0) b).
-                         apply UM_aux_ttqb. apply idb_sort.
+                         apply UM_aux_ttqb. auto. apply idb_sort.
                          auto. apply ida_sort. auto.
                          apply replace_column_ttqb.
                        }
@@ -116,7 +119,7 @@ Proof. intros. intros. assert(HA:Sorted by_sp (sort by_sp A)).
                          (UM_aux (sort by_dbp B) (sort by_sp A) 0 0)
                           (uniform_price (sort by_dbp B) (sort by_sp A))) a) with 
                           (ttqa (UM_aux (sort by_dbp B) (sort by_sp A) 0 0) a).
-                         apply UM_aux_ttqa. apply idb_sort.
+                         apply UM_aux_ttqa. auto. apply idb_sort.
                          auto. apply ida_sort. auto. 
                          apply replace_column_ttqa.
                        } 
@@ -143,7 +146,7 @@ Proof. intros. intros. assert(HA:Sorted by_sp (sort by_sp A)).
                    }
                 }
                 { eapply UM_aux_is_Ind_Rat with (B:=(sort by_dbp B)) in HA.
-                  auto. auto. 
+                  auto. all:auto. 
                 }
              }
           Qed.
@@ -153,8 +156,7 @@ Theorem UM_FAIR (B:list Bid)(A:list Ask)
 (NZB: forall b, In b B -> (bq b)>0)
 (NZA: forall a, In a A -> (sq a)>0)
 (NDA:NoDup (idas_of A))
-(NDB:NoDup (idbs_of B))
-(Hanti: (antisymmetric by_sp)/\(antisymmetric by_dbp)):
+(NDB:NoDup (idbs_of B)):
 Is_fair (UM B A) B A.
 Proof.  assert(HA:Sorted by_sp (sort by_sp A)).
                         apply sort_correct. apply by_sp_P. apply by_sp_P.
@@ -162,7 +164,8 @@ Proof.  assert(HA:Sorted by_sp (sort by_sp A)).
                         apply sort_correct. apply by_dbp_P. apply by_dbp_P.
                         unfold UM. 
                         assert(Is_fair (UM_matching (sort by_dbp B) (sort by_sp A)) 
-                        (sort by_dbp B) (sort by_sp A)). eapply UM_Fair. apply idb_sort.
+                        (sort by_dbp B) (sort by_sp A)). eapply UM_Fair. 
+                         all:try auto. apply idb_sort.
                          auto. apply ida_sort. auto.
                         auto. auto. unfold UM_matching in H.
                         apply fair_sort in H. auto.
@@ -175,8 +178,7 @@ Theorem UM_Maximum (B:list Bid)(A:list Ask)(M:list fill_type)
 (NZA: forall a, In a A -> (sq a)>0)
 (NDA:NoDup (idas_of A))
 (NDB:NoDup (idbs_of B))
-(NZT: forall m : fill_type, In m M -> tq m > 0)
-(Hanti: (antisymmetric by_sp)/\(antisymmetric by_dbp)):
+(NZT: forall m : fill_type, In m M -> tq m > 0):
 Is_uniform M B A ->
 QM((UM B A))>=QM(M).
 Proof.  unfold UM. intros.

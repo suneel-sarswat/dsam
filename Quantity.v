@@ -44,6 +44,13 @@ intro. destruct H0.  subst b.  move /eqP in Hb.
 elim Hb. auto. revert H0. eapply IHM. auto. exact. Qed.
 
 
+Lemma ttqb_intro1 (M:list fill_type) (b:Bid): 
+ttqb M b <> 0 -> In b (bids_of M).
+Proof. revert b. induction M. simpl. auto.
+intros. simpl in H. destruct (b_eqb b (bid_of a)) eqn: Hb. simpl.
+move /eqP in Hb. subst. auto. apply IHM in H. simpl. auto. Qed.
+
+
 Lemma ttqb_delete_m_ofb 
 (M:list fill_type) (m:fill_type) (b:Bid) : 
 In m M -> b=bid_of m -> ttqb M b = ttqb (delete m M) b + tq m.
@@ -158,6 +165,12 @@ intros. simpl in H. destruct (a_eqb a0 (ask_of a)) eqn: Hb.
 assert (tq a >0). eapply NZT. auto. lia. simpl.
 intro. destruct H0.  subst a0.  move /eqP in Hb. 
 elim Hb. auto. revert H0. eapply IHM. auto. exact. Qed.
+
+Lemma ttqa_intro1 (M:list fill_type) (a:Ask): 
+ttqa M a <> 0 -> In a (asks_of M).
+Proof. revert a. induction M. simpl. auto.
+intros. simpl in H. destruct (a_eqb a0 (ask_of a)) eqn: Hb. simpl.
+move /eqP in Hb. subst a0. auto. apply IHM in H. simpl. auto. Qed.
 
 
 Lemma ttqa_delete_m_ofa 

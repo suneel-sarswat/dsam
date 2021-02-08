@@ -232,6 +232,11 @@ let fOA_aux a a1 b =
 let fOA m a =
   fOA_aux m a 0
 
+(** val fAIR : fill_type list -> bid list -> ask list -> fill_type list **)
+
+let fAIR m b a =
+  fOB (sort m_dbp (fOA (sort m_sp m) (sort by_sp a))) (sort by_dbp b)
+
 (** val uM_aux : bid list -> ask list -> int -> int -> fill_type list **)
 
 let uM_aux a a1 a2 b =
@@ -280,6 +285,12 @@ let rec replace_column l n =
 let uniform_price b a =
   (last (uM_aux b a 0 0) m0).bid_of.bp
 
+(** val uM : bid list -> ask list -> fill_type list **)
+
+let uM b a =
+  replace_column (uM_aux (sort by_dbp b) (sort by_sp a) 0 0)
+    (uniform_price (sort by_dbp b) (sort by_sp a))
+
 (** val mM_aux : bid list -> ask list -> int -> int -> fill_type list **)
 
 let mM_aux a a1 a2 b =
@@ -317,18 +328,7 @@ let mM_aux a a1 a2 b =
 (** val by_dsp : ask -> ask -> bool **)
 
 let by_dsp s1 s2 =
-  (||) (leb s2.sp s1.sp) ((&&) (eqb s2.sp s1.sp) (leb s2.stime s1.stime))
-
-(** val fAIR : fill_type list -> bid list -> ask list -> fill_type list **)
-
-let fAIR m b a =
-  fOB (sort m_dbp (fOA (sort m_sp m) (sort by_sp a))) (sort by_dbp b)
-
-(** val uM : bid list -> ask list -> fill_type list **)
-
-let uM b a =
-  replace_column (uM_aux (sort by_dbp b) (sort by_sp a) 0 0)
-    (uniform_price (sort by_dbp b) (sort by_sp a))
+  (||) (ltb s2.sp s1.sp) ((&&) (eqb s2.sp s1.sp) (leb s2.stime s1.stime))
 
 (** val mM : bid list -> ask list -> fill_type list **)
 

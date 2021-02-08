@@ -8,7 +8,7 @@ Require Import Lia.
 Require Import Wf.
 From Equations Require Import Equations.
 
-Require Export DecSort MinMax.
+Require Export DecSort.
 Require Export mBidAsk.
 Require Export DecList.
 Require Export mMatching.
@@ -17,21 +17,19 @@ Require Export mFair_Bid.
 
 
 Section Fair_Ask.
+Hypothesis unique_timestampask:forall s1 s2, (stime s1 = stime s2) -> s1 = s2.
+
+Definition by_sp (s1:Ask) (s2:Ask) :=(Nat.ltb s1 s2) ||
+((Nat.eqb s1 s2) && (Nat.leb (stime s1) (stime s2) )).
 
 Definition fair_on_asks (M: list fill_type) (A: list Ask):=
-  (forall s s', In s A /\ In s' A -> s < s' -> In s' (asks_of M) ->
+  (forall s s', In s A /\ In s' A -> (s<>s') -> by_sp s s' -> In s' (asks_of M) ->
   (ttqa M s')>0 -> 
   (In s (asks_of M)/\(ttqa M s= sq s))).
 
 (*##################Sorting Criteria for Bids and Matchings for fair #################*)
 
-Definition by_sp (s1:Ask) (s2:Ask) :=(Nat.leb s1 s2) ||
-((Nat.eqb s1 s2) && (Nat.leb (stime s1)  (stime s2) )).
-Lemma comp_triv (sp:nat)(sp0:nat):
-~ (Nat.leb sp sp0) -> (Nat.leb sp0 sp).
-Proof. revert sp. induction sp0. simpl. intro. eauto. intros. 
- simpl in H. destruct sp. simpl. auto. intros. simpl. eapply IHsp0. auto. Qed.
-Lemma by_sp_P : transitive by_sp /\ comparable by_sp.
+Lemma by_sp_P : transitive by_sp /\ DecSort.comparable by_sp.
 Proof. { split.
           { unfold transitive. unfold by_sp.  
             intros y x z H H1. move /orP in H1. move /orP in H.
@@ -42,32 +40,58 @@ Proof. { split.
             { move /andP in H0. destruct H0. left.
               move /leP in H. move /eqP in H0. apply /leP. lia. }
             { move /andP in H0. move /andP in H. destruct H0. destruct H.
-              left.
-              move /eqP in H. move /eqP in H0. apply /leP. lia. } }
-          { unfold comparable. unfold by_sp. intros. move /orP in H.
-            assert (~ ((Nat.leb x y))). eauto. apply /orP. left.
-            destruct x. destruct y. simpl in H0. simpl in H. simpl.
-            apply comp_triv. auto. } } Qed.
+              right.
+              move /eqP in H. move /eqP in H0. apply /andP.
+              split. apply /eqP. lia. apply /leP. move /leP in H1. 
+              move /leP in H2. lia. } }
+          { unfold DecSort.comparable.
+              unfold by_sp. intros.  intros. destruct x. destruct y.  simpl. 
+              assert((sp0 = sp)\/(sp0 < sp)\/(sp < sp0)). lia. destruct H.
+              subst. assert(Nat.ltb sp sp = false). apply /ltP. lia. rewrite H. simpl.
+              assert(Nat.eqb sp sp =true). auto. rewrite H0. simpl. 
+              assert((stime0 <= stime)\/(stime < stime0)). lia. destruct H1.
+              right. apply /leP. auto. left. apply /leP. lia.
+              destruct H. right. apply /orP. left. apply /ltP. auto. left.
+              apply /orP. left. apply /ltP. auto. } } Qed.
+
+Lemma by_sp_antisymmetric : antisymmetric by_sp.
+    Proof. unfold antisymmetric. intros. move /andP in H.
+    destruct H as [H2 H3].
+    unfold by_dbp in H2. unfold by_dbp in H3.
+    move /orP in H2. move /orP in H3. 
+    destruct H2;destruct H3. 
+    move /ltP in H. move /ltP in H0. lia. 
+    move /andP in H0. destruct H0. 
+    move /ltP in H. move /eqP in H0. lia. 
+    move /andP in H. destruct H. 
+    move /ltP in H0. move /eqP in H.
+    lia.
+    move /andP in H. destruct H. 
+    move /leP in H1.  
+    move /andP in H0. destruct H0. 
+    move /leP in H2. apply unique_timestampask. lia.
+Qed.
+
 
                 
 Lemma by_sp_refl: reflexive by_sp.
 Proof. unfold reflexive. intros. unfold by_sp. apply /orP. 
-left. apply nat_reflexive.  Qed.
+right. apply /andP. split. auto. apply nat_reflexive.  Qed.
 
 
 Definition m_sp (m1:fill_type) (m2:fill_type) := by_sp (ask_of m1) (ask_of m2).
 
-Lemma m_sp_P : transitive m_sp /\ comparable m_sp.
+Lemma m_sp_P : transitive m_sp /\ DecSort.comparable m_sp.
 Proof. { split.
          { unfold transitive. unfold m_sp. 
            intros. cut (transitive by_sp). intros. eauto using by_sp_P. 
             apply by_sp_P. }
-         { unfold comparable.  unfold m_sp. intros x y H. eapply by_sp_P. 
-           exact.  } } Qed. 
+         { unfold DecSort.comparable.  unfold m_sp. intros x y. eapply by_sp_P. 
+             } } Qed. 
 
 Lemma m_sp_refl: reflexive m_sp.
 Proof. unfold reflexive. intros. unfold m_sp. unfold by_sp. 
-apply /orP. left. apply nat_reflexive. Qed.
+apply /orP. right. apply /andP. split. auto. apply nat_reflexive.  Qed.
 
 Lemma m_sp_and_by_sp (M:list fill_type):
 Sorted m_sp M -> Sorted by_sp (asks_of M).
@@ -188,7 +212,13 @@ Proof. { unfold FOA. apply FOA_aux_asks_subset. } Qed.
 
 
 
-(*This lemma (fob_asks_invariant) ensures that the total traded quantity for each ask in FOA is equal to it's  traded quantity in the input atching M. With this it is starightforward that the total traded quantity of an ask in FOA is less than or equal to it's  ask quantity, since M is a matching. This lemma is also useful to ensures that the asks are not changed during fair on bids. This is useful to prove that during composition of FOA to FOA functions the fairness property of FOA remains invariant. This lemaa is also useful to show that the total traded quantity of FOA is same as input M. *)
+(*This lemma (fob_asks_invariant) ensures that the total traded quantity for each ask in FOA is equal 
+to it's  traded quantity in the input atching M. With this it is starightforward that the total traded 
+quantity of an ask in FOA is less than or equal to it's  ask quantity, since M is a 
+matching. This lemma is also useful to ensures that the asks are not changed during
+fair on bids. This is useful to prove that during composition of FOA to FOA functions the fairness property of FOA 
+remains invariant. This lemaa is also useful to show that the total traded quantity of FOA is same as 
+input M. *)
 
 Lemma FOA_aux_bids_invariant_t (M:list fill_type)(A: list Ask)(b:Bid)(t:nat)
 (NZT:(forall m, In m M -> (tq m) > 0) ):
@@ -237,7 +267,9 @@ Proof. unfold FOA. intros. eapply FOA_aux_bids_invariant_t. auto. lia. Qed.
 
 (*################################################################################*)
 
-(*In this lemma (fob_aux_top_bid_fair) we first show that the top bid in B is fully traded (trade quantity is total quantity. Note that, for arbitrary value of t, the statement is total quantity minus t. For t=0, the statement of following lemma is same as fully traded*)
+(*In this lemma (fob_aux_top_bid_fair) we first show that the top bid in B is fully traded 
+(trade quantity is total quantity. Note that, for arbitrary value of t, the statement is total 
+quantity minus t. For t=0, the statement of following lemma is same as fully traded*)
 
 Lemma FOA_aux_top_ask_fair (M: list fill_type)(A: list Ask)(a:Ask)(t:nat)
 (NZT:(forall m, In m M -> (tq m) > 0) )(NDA:NoDup (a::A)):
@@ -289,9 +321,9 @@ eapply FOA_aux_top_ask_fair with (t:=0)(a:=a)(M:=M). exact. exact. Qed.
 (*This lemma ensures that if a less move competitive ask is part of FOA then less competitive 
 must be part of matching.*)
 Lemma FOA_aux_more_competative_in (M: list fill_type)(A: list Ask)(a1 a2:Ask)(t:nat)
-(NZT:(forall m, In m M -> (tq m) > 0) )(NDA:NoDup A):
+(NZT:(forall m, In m M -> (tq m) > 0) )(NDA:NoDup A)(Hnot: a1<>a2):
 Sorted by_sp A ->
-a1<a2 -> 
+by_sp a1 a2 -> 
 In a1 A ->
 In a2 A ->
 In a2 (asks_of (FOA_aux M A t))-> 
@@ -302,7 +334,7 @@ funelim (FOA_aux M A t).
 + intros. simp FOA_aux in H1.
 + intros. destruct (a_eqb a a1) eqn: Hbb1;destruct (a_eqb a a2) eqn: Hbb2.
 { move /eqP in Hbb1;move /eqP in Hbb2.
-  subst a1;subst a2. lia. }
+  subst a1;subst a2. auto. }
 { move /eqP in Hbb1;subst a1. 
   rewrite <- Heqcall.
   destruct (Nat.eqb (tq f) (sq a - t)) eqn:Heq0.  
@@ -313,11 +345,10 @@ funelim (FOA_aux M A t).
 }
 { move /eqP in Hbb2;subst a2.
   { eapply Sorted_elim4 with (a0:=a)(x:=a1) in H2. 
-    unfold by_sp in H2.
-    move /orP in H2. destruct H2. 
-    move /leP in H2. lia. move /andP in H2;destruct H2.
-    move /eqP in H2. lia. auto. destruct H4.
-    subst a1. lia. exact.      
+    assert(a=a1). apply by_sp_antisymmetric. apply /andP.
+    auto. subst. simpl. auto.
+    (**)
+    destruct H4. subst. move /eqP in Hbb1. destruct Hbb1. auto. exact.
   }
 }
 {
@@ -353,8 +384,8 @@ funelim (FOA_aux M A t).
 the total quantity traded in the matching should be more that or equal to more competitive bid*)
 
 Lemma FOA_QM_ge_bqb (M: list fill_type)(A: list Ask)(a1 a2:Ask)(t:nat)
-(NZT:(forall m, In m M -> (tq m) > 0) )(NDA:NoDup A):
-Sorted by_sp A ->  a1<a2 -> 
+(NZT:(forall m, In m M -> (tq m) > 0) )(NDA:NoDup A)(Hnot: a1<>a2):
+Sorted by_sp A ->  by_sp a1 a2 -> 
 In a1 (asks_of (FOA_aux M A t)) -> In a2 (asks_of (FOA_aux M A t))
 ->  QM(M)>=sq a1 - t.
 Proof.  funelim (FOA_aux M A t). 
@@ -368,11 +399,10 @@ destruct (Nat.eqb (tq f) (sq a - t)) eqn:Heq0.
    { subst a1. simpl. lia. }
    { (*this case contradict sorted. Move this into 
      a general result and automate. *)subst a2. assert (In a1 l0). eapply FOA_aux_asks_subset.
-     eauto. assert(a<a1). 
-     { eapply Sorted_elim4 with (a0:=a)(x:=a1) in H2. unfold by_sp in H2.
-     move /orP in H2. destruct H2. move /leP in H2. lia. move /andP in H2;destruct H2.
-     move /eqP in H2. lia. auto. }
-    lia. } 
+     eauto. assert(by_sp a a1). 
+     { eapply Sorted_elim4 with (a0:=a)(x:=a1) in H2. auto. auto. }
+       simpl. assert(a=a1). apply by_sp_antisymmetric. apply /andP.
+       auto. subst. lia. } 
    { eapply H in H3. all: try (simpl;lia);auto;eauto. } 
 }   (*End Case : EQ*)
 { 
@@ -380,7 +410,7 @@ destruct (Nat.eqb (tq f) (sq a - t)) eqn:Heq0.
    { (*Case : Top trade quantity is less than the the top bid  *)
      move /eqP in Heq0. move /leP in Hle. simpl in H4. simpl in H5.
      destruct H4;destruct H5. 
-      { subst. inversion H3. lia. lia. }
+      { subst. destruct Hnot. auto. }
       { subst a. eapply H0 in H3. all: try (simpl;lia);auto. 
        { case l eqn:Hl.  simp FOA_aux in H5. simp FOA_aux.
          destruct (Nat.eqb (tq f0) (sq a1 - (t + tq f))) eqn:Hfb1. 
@@ -391,25 +421,22 @@ destruct (Nat.eqb (tq f) (sq a - t)) eqn:Heq0.
       }
       { subst a2. assert (In a1 (a::l0)). 
         eapply FOA_aux_asks_subset with (A:=(a::l0)).
-        eauto. assert(a<a1). 
-        { eapply Sorted_elim4 with (a0:=a)(x:=a1) in H2. 
-          unfold by_sp in H2.
-          move /orP in H2. destruct H2. 
-          move /leP in H2. lia. move /andP in H2;destruct H2.
-          move /eqP in H2. lia. destruct H5. subst a. lia. auto. 
-        } lia. 
+        eauto. eapply Sorted_elim4 with (a0:=a)(x:=a1) in H2. 
+          assert(a=a1). apply by_sp_antisymmetric. apply /andP.
+          auto. subst. destruct Hnot. auto.
+          destruct H5. subst. destruct Hnot. auto.
+          exact.
       }
       { eapply H0 with (a1:=a1) in H5. all: try (simpl;lia);auto. } 
    }
-   { (*Case : Top trade quantity is more than the the top bid  *)
+   { (*Case : Top trade quantity is more than the the top ask *)
      move /eqP in Heq0. move /leP in Hle. simpl in H4. simpl in H5.
      destruct H4;destruct H5.
-     { subst. inversion H3. lia. lia. }
+     { subst. destruct Hnot. auto. }
      { subst a. simpl. lia. }
-     { eapply Sorted_elim4 with (a0:=a)(x:=a1) in H2. 
-       unfold by_sp in H2.
-       move /orP in H2. destruct H2. move /leP in H2. subst a. simpl. lia. 
-       move /andP in H2;destruct H2. move /eqP in H2. simpl. subst a. lia. 
+     { eapply Sorted_elim4 with (a0:=a)(x:=a1) in H2. subst. 
+       assert(a2=a1). apply by_sp_antisymmetric. apply /andP.
+       auto. subst. destruct Hnot. auto. 
        eapply FOA_aux_asks_subset with (A:=(l0)) in H4. exact. 
      }
      { eapply H1 with (a1:=a1) in H5. simpl in H5. all: try (simpl;lia);auto. 
@@ -422,12 +449,12 @@ Lemma FOA_aux_triv (l:list fill_type):
 FOA_aux l nil 0 =nil.
 Proof. funelim (FOA_aux l nil 0). simp FOA_aux. auto. simp FOA_aux. auto. Qed.
 
-(*Following lemma (fob_aux_bids_fair_t) is the main fair lemma for arbitrary value of t.
-  Note that, for t=0 the lemma is fair_on_bids lemma.*)
+(*Following lemma (foa_aux_asks_fair_t) is the main fair lemma for arbitrary value of t.
+  Note that, for t=0 the lemma is fair_on_asks lemma.*)
 Lemma FOA_aux_asks_fair_t (M: list fill_type)(A: list Ask)(a a1 a2:Ask)(t:nat)
-(NZT:(forall m, In m M -> (tq m) > 0) )(NDA:NoDup (a::A)):
+(NZT:(forall m, In m M -> (tq m) > 0) )(NDA:NoDup (a::A))(Hnot: a1<>a2):
 Sorted by_sp (a::A) ->  
-a1<a2 -> 
+by_sp a1 a2 -> 
 In a1 (asks_of (FOA_aux M (a::A) t)) -> 
 In a2 (asks_of (FOA_aux M (a::A) t)) ->  
 (a1=a -> ttqa (FOA_aux M (a::A) t) a1 = sq a1 - t )/\
@@ -436,8 +463,9 @@ Proof.
 funelim (FOA_aux M (a::A) t). auto. 
 { intros. destruct (a_eqb a1 a ) eqn: Hbb1. 
   { move /eqP in Hbb1. subst a. split.
-    intros. eapply FOA_aux_top_ask_fair. auto. auto. eapply FOA_QM_ge_bqb in H5. 
-    all: try (simpl;lia);auto;eauto.  
+    intros. eapply FOA_aux_top_ask_fair. auto. auto. 
+    eapply FOA_QM_ge_bqb with(a1:=a1) in H5. 
+    all: try (simpl;lia);auto.
   }
   { split;intros. 
     { subst a1. move /eqP in Hbb1. auto. }
@@ -451,20 +479,19 @@ funelim (FOA_aux M (a::A) t). auto.
         { subst a1;auto. }
         { subst a2. assert (In a1 l0). 
           eapply FOA_aux_asks_subset. eauto.
-          assert(a<a1). 
-          { eapply Sorted_elim4 with (a0:=a)(x:=a1)(lr:=by_sp) in H2. 
-            unfold by_sp in H2. move /orP in H2. destruct H2. 
-            move /leP in H2. lia. move /andP in H2;destruct H2.
-            move /eqP in H2. lia. auto.  } 
-            lia. }
+          eapply Sorted_elim4 with (a0:=a)(x:=a1)(lr:=by_sp) in H2. 
+          assert(a=a1). apply by_sp_antisymmetric. apply /andP.
+          auto. subst. destruct Hnot. auto.
+          exact.  } 
          { case l0 as [| b0 A'] eqn:Hl0.
              { rewrite FOA_aux_triv in H4. simpl in H4. auto. }
              { destruct (a_eqb a1 b0) eqn: Hbb0. 
                   { move /eqP in Hbb0. subst b0. eapply FOA_aux_top_ask_fair0.
                     auto. eauto. eapply FOA_QM_ge_bqb with (a1:=a1)(A:=(a1::A'))(a2:=a2) in H5.
-                    lia. auto. eauto. eauto. all:exact. }
-                  { eapply H. auto. eauto. auto. auto. eauto. eauto. 
-                    exact. exact. move /eqP in Hbb0. exact. } 
+                    lia. auto. eauto. eauto. eauto. all:exact. }
+                  { eapply H with (a:=b0)(a1:=a1)(a2:=a2). auto. eauto. eauto. 
+                    eauto. eauto. eauto. 
+                    exact. exact. exact. move /eqP in Hbb0. exact. } 
              } 
          } 
       }
@@ -478,15 +505,13 @@ funelim (FOA_aux M (a::A) t). auto.
           { subst a1;auto. }
           { subst a2. assert (In a1 (a::l0)). 
             eapply FOA_aux_asks_subset. eauto.
-            assert(a<a1). 
-            { eapply Sorted_elim4 with (a0:=a)(x:=a1)(lr:=by_sp) in H2. 
-            unfold by_sp in H2. move /orP in H2. destruct H2. 
-            move /leP in H2. lia. move /andP in H2;destruct H2.
-            move /eqP in H2. lia. destruct H5. 
-            subst a1;elim H6;auto. exact.  }
-            lia. }
-           { simpl. rewrite Hbb1. eapply H0. auto. exact. exact. eauto.
-             exact. exact. exact. } 
+            eapply Sorted_elim4 with (a0:=a)(x:=a1)(lr:=by_sp) in H2. 
+            assert(a=a1). apply by_sp_antisymmetric. apply /andP.
+            auto. subst.  destruct Hnot. auto.
+            destruct H5. subst.  destruct Hnot. auto.
+            exact. }
+           { simpl. rewrite Hbb1. eapply H0 with (a2:=a2). 
+             all: try auto.  } 
         } 
            (*greater than case *) 
         { simpl. rewrite Hbb1.
@@ -498,26 +523,22 @@ funelim (FOA_aux M (a::A) t). auto.
           { subst a1;auto. }
           { subst a2. assert (In a1 l0). 
             eapply FOA_aux_asks_subset. eauto.
-            assert(a<a1). 
-            { eapply Sorted_elim4 with (a0:=a)(x:=a1) in H2. 
-              unfold by_sp in H2. move /orP in H2. destruct H2. 
-              move /leP in H2. lia. move /andP in H2;destruct H2.
-              move /eqP in H2. lia. exact. 
-            } 
-            lia. 
-          }
+            apply Sorted_elim4 with (a0:=a)(x:=a1) in H2. 
+            assert(a=a1). apply by_sp_antisymmetric. apply /andP.
+            auto. subst.  destruct Hnot. auto.
+            exact. }
           { case l0 as [| a0 A'].
             { rewrite FOA_aux_triv in H4. simpl in H4. auto. }
             { destruct (a_eqb a1 a0) eqn: Hbb0. 
               { move /eqP in Hbb0. subst a0. eapply FOA_aux_top_ask_fair0.
                 simpl. intros. destruct H7. subst m. simpl. lia. auto. eauto. 
                 simpl. eapply FOA_QM_ge_bqb with (a1:=a1)(A:=(a1::A'))(a2:=a2) in H4 . 
-                simpl in H4. lia. intros. destruct H7. subst m. simpl. lia. auto.
-                eauto. eauto. all:exact. 
+                simpl in H4. lia. intros. destruct H7. subst m. simpl. lia. eauto.
+                eauto. auto. eauto. all:exact. 
               }
-              { eapply H1. 
+              { eapply H1 with (a1:=a0)(a2:=a1)(a3:=a2).
                 intros. destruct H7. subst m. simpl. lia. auto.
-                eauto. eauto. eauto. eauto. eauto. exact. exact. 
+                eauto. eauto. eauto. eauto. eauto. eauto. exact. exact. 
                 move /eqP in Hbb0. exact.
               } 
             } 
@@ -531,9 +552,9 @@ Qed.
 
 (*This (FOA_asks_fair) is the main lemma which prove that FOA is fair on asks*)
 Lemma FOA_asks_fair (M: list fill_type)(A: list Ask)(a1 a2:Ask)
-(NZT:(forall m, In m M -> (tq m) > 0) )(NDA:NoDup A):
+(NZT:(forall m, In m M -> (tq m) > 0) )(NDA:NoDup A)(Hnot: a1<>a2):
 Sorted by_sp A ->  
-a1<a2 -> 
+by_sp a1 a2 -> 
 In a1 (asks_of (FOA M A)) -> In a2 (asks_of (FOA M A))
 -> ttqa (FOA M A) a1 = sq a1.
 Proof. { unfold FOA. intros. case A as [ |a A' ] eqn: HA.
@@ -552,8 +573,7 @@ Proof. { unfold FOA. intros. case A as [ |a A' ] eqn: HA.
 (*################################################################################*)
 
 Lemma FOA_aux_matchable_t (M: list fill_type)(A: list Ask)(a:Ask)(t:nat)
-(NZT:(forall m, In m M -> (tq m) > 0) )(NDA:NoDup A) 
-(Hanti: antisymmetric by_sp):
+(NZT:(forall m, In m M -> (tq m) > 0) )(NDA:NoDup A):
 Sorted by_sp (a::A) -> 
 Sorted m_sp M -> 
 All_matchable M -> 
@@ -573,7 +593,7 @@ destruct (Nat.eqb (tq f) (sq a - t)) eqn: Heq. (*EQ case*)
         specialize (H4 f). apply H4 in H9. assert (ask_of f >= a).  
         eapply Sorted_elim2 with (x:=ask_of f) in H2. unfold by_sp in H2.
         move /orP in H2. destruct H2.
-        { move /leP in H2. exact. }
+        { move /ltP in H2. lia. }
         { move /andP in H2. destruct H2. move /eqP in H2. lia. }
         auto. exact. lia. }
       { case l0 as [|a0 A'] eqn: HB. (*EQ: IH case*)
@@ -584,10 +604,9 @@ destruct (Nat.eqb (tq f) (sq a - t)) eqn: Heq. (*EQ case*)
           { eauto. } 
           { auto. } 
           { auto. }
-          { auto. }
+          { eauto. }
           { eauto. }
           { eauto. } 
-          { eauto. }
           { move /eqP in Heq. simpl in H7. 
             destruct (a_eqb a (ask_of f)) eqn: Hbm.
             { assert (ttqa l a = 0). lia. 
@@ -601,14 +620,14 @@ destruct (Nat.eqb (tq f) (sq a - t)) eqn: Heq. (*EQ case*)
              \/ ~In a (asks_of l)). eauto.
              destruct H8. 
              { simpl in H5. 
-               eapply Sorted_subset with (a1:=(ask_of f))(a2:=a)
-               (l2:=(a0::A'))(l1:=(asks_of l))(lr:=by_sp) in H5.
-               assert (a=(ask_of f)). apply Hanti. apply /andP.
-               destruct H5. auto.
-               subst a. elim Hbm.
-               auto. apply by_sp_P. apply by_sp_refl. 
-               eapply m_sp_and_by_sp in H3. simpl in H3;auto. auto. 
-               simpl. right;auto. }
+               eapply m_sp_and_by_sp in H3. simpl in H3.
+               eapply Sorted_elim4 with (a1 := (ask_of f))(x:=a) in H3.
+               assert (a=(ask_of f)). apply by_sp_antisymmetric. apply /andP.
+               auto. subst. 
+               eapply Sorted_elim4 with (a1:=a)(x:=ask_of f) in H2. auto. 
+               eapply included_elim2. eauto.
+               eauto. 
+               exact. }
              { simpl in H5. 
                eapply Subset_elim with (a1:=(ask_of f))(a2:=a)(l2:=(a0::A'))
                in H5. eauto. eauto. } 
@@ -632,7 +651,7 @@ destruct (Nat.eqb (tq f) (sq a - t)) eqn: Heq. (*EQ case*)
           specialize (H4 f). apply H4 in H9. assert (ask_of f >= a).  
           eapply Sorted_elim2 with (x:=ask_of f) in H2. unfold by_sp in H2.
           move /orP in H2. destruct H2.
-          { move /leP in H2. exact. }
+          { move /ltP in H2. lia. }
           { move /andP in H2. destruct H2. move /eqP in H2. lia. }
           auto. exact. lia. 
         }
@@ -648,13 +667,12 @@ destruct (Nat.eqb (tq f) (sq a - t)) eqn: Heq. (*EQ case*)
             assert (In a (asks_of l) \/ ~In a (asks_of l)).
             eauto. destruct H9. 
             { simpl in H5. 
-              eapply Sorted_subset with (a1:=(ask_of f))(a2:=a)
-              (l2:=(l0))(l1:=(asks_of l))(lr:=by_sp) in H5.
-              assert (a=(ask_of f)). apply Hanti. apply /andP.
-              destruct H5. auto. subst a. elim Hbm.
-              auto. apply by_sp_P. apply by_sp_refl. 
-              eapply m_sp_and_by_sp in H3. simpl;auto. auto. 
-              simpl. right;auto. 
+              eapply Sorted_elim4 with (a0:=a)(x:=ask_of f) in H2.
+              eapply m_sp_and_by_sp in H3. simpl in H3.
+               eapply Sorted_elim4 with (a0 := (ask_of f))(x:=a) in H3.
+               assert(a=(ask_of f)).  apply by_sp_antisymmetric. apply /andP.
+               auto. subst a. destruct Hbm. auto.
+               exact. eapply included_elim2. eauto.
             }
             { eapply  ttqa_elim in H9. lia. } 
           } 
@@ -664,13 +682,14 @@ destruct (Nat.eqb (tq f) (sq a - t)) eqn: Heq. (*EQ case*)
       (*GT case*) 
         { subst m. simpl. assert (In (ask_of f) (a::l0)). (*GT: Base case*)
           apply H5. simpl. left. auto. assert (In f (f::l)). auto. 
-          specialize (H4 f). apply H4 in H9. assert (ask_of f >= a).  
-          eapply Sorted_elim2 with (x:=ask_of f) in H2. 
+          specialize (H4 f). apply H4 in H9.
+          destruct (a_eqb a (ask_of f)) eqn:Hfb. move /eqP in Hfb. subst. auto.
+          eapply Sorted_elim4 with (a0:=a)(x:=ask_of f) in H2.
           unfold by_sp in H2.
           move /orP in H2. destruct H2.
-          { move /leP in H2. exact. }
-          { move /andP in H2. destruct H2. move /eqP in H2. lia. }
-          auto. exact. lia. 
+          { move /ltP in H2. lia. }
+          { move /andP in H2. destruct H2. move /eqP in H2. lia. } move /eqP in Hfb.
+             eapply included_elim2. eauto.
         }
         { case l0 as [|a0 A'] eqn: HB.  (*GT: IH case*)
           { rewrite FOA_aux_triv in H8. inversion H8. }
@@ -688,13 +707,12 @@ destruct (Nat.eqb (tq f) (sq a - t)) eqn: Heq. (*EQ case*)
             assert (In a (asks_of l) \/ ~In a (asks_of l)). eauto.
             destruct H9. 
             { simpl in H5. 
-              eapply Sorted_subset with (a1:=(ask_of f))(a2:=a)
-              (l2:=(a0::A'))(l1:=(asks_of l))(lr:=by_sp) in H5.
-              assert (a=(ask_of f)). apply Hanti. apply /andP.
-              destruct H5. auto. subst a. elim Hbm.
-              auto. apply by_sp_P. apply by_sp_refl. 
-              eapply m_sp_and_by_sp in H3. simpl;auto. auto. 
-              simpl. right;auto. 
+              eapply Sorted_elim4 with (a1:=a)(x:=ask_of f) in H2.
+              eapply m_sp_and_by_sp in H3. simpl in H3.
+               eapply Sorted_elim4 with (a1 := (ask_of f))(x:=a) in H3.
+               assert(a=(ask_of f)).  apply by_sp_antisymmetric. apply /andP.
+               auto. subst a. destruct Hbm. auto.
+               exact. eapply included_elim2. eauto.
             }
             { simpl in H5.
               eapply Subset_elim0 with (a1:=(ask_of f))(a2:=a)
@@ -714,7 +732,7 @@ Qed.
 
 Lemma FOA_matchable (M: list fill_type)(A: list Ask)
 (NZT:(forall m, In m M -> (tq m) > 0) )
-(NDA:NoDup A) (Hanti: antisymmetric by_sp):
+(NDA:NoDup A) :
 Sorted by_sp A -> 
 Sorted m_sp M -> 
 All_matchable M -> 
@@ -729,8 +747,7 @@ all: auto. eauto. specialize (H3 a);lia. Qed.
 (*##########################IR M -> IR FOA#########################*)
 
 Lemma FOA_aux_IR_t (M: list fill_type)(A: list Ask)(a:Ask)(t:nat)
-(NZT:(forall m, In m M -> (tq m) > 0) )(NDA:NoDup A) 
-(Hanti: antisymmetric by_sp):
+(NZT:(forall m, In m M -> (tq m) > 0) )(NDA:NoDup A):
 Sorted by_sp (a::A) -> 
 Sorted m_sp M -> 
 Is_IR M -> 
@@ -751,7 +768,7 @@ destruct (Nat.eqb (tq f) (sq a - t)) eqn: Heq. (*EQ case*)
         specialize (H4 f). apply H4 in H9. assert (ask_of f >= a).  
         eapply Sorted_elim2 with (x:=ask_of f) in H2. unfold by_sp in H2.
         move /orP in H2. destruct H2.
-        { move /leP in H2. exact. }
+        { move /ltP in H2. lia. }
         { move /andP in H2. destruct H2. move /eqP in H2. lia. }
         auto. exact. unfold rational in H9. lia. }
       { case l0 as [|a0 A'] eqn: HB. (*EQ: IH case*)
@@ -761,7 +778,6 @@ destruct (Nat.eqb (tq f) (sq a - t)) eqn: Heq. (*EQ case*)
           { auto. } 
           { eauto. } 
           { auto. } 
-          { auto. }
           { auto. }
           { eauto. }
           { eauto. } 
@@ -779,14 +795,12 @@ destruct (Nat.eqb (tq f) (sq a - t)) eqn: Heq. (*EQ case*)
              \/ ~In a (asks_of l)). eauto.
              destruct H8. 
              { simpl in H5. 
-               eapply Sorted_subset with (a1:=(ask_of f))(a2:=a)
-               (l2:=(a0::A'))(l1:=(asks_of l))(lr:=by_sp) in H5.
-               assert (a=(ask_of f)). apply Hanti. apply /andP.
-               destruct H5. auto.
-               subst a. elim Hbm.
-               auto. apply by_sp_P. apply by_sp_refl. 
-               eapply m_sp_and_by_sp in H3. simpl in H3;auto. auto. 
-               simpl. right;auto. }
+               eapply Sorted_elim4 with (a1:=a)(x:=ask_of f) in H2. 
+               eapply m_sp_and_by_sp in H3. simpl in H3.
+               eapply Sorted_elim4 with (a1 := (ask_of f))(x:=a) in H3.
+               assert (a=(ask_of f)). apply by_sp_antisymmetric. apply /andP.
+               auto. subst. destruct Hbm. auto.
+               exact.  eapply included_elim2. eauto. }
              { simpl in H5. 
                eapply Subset_elim with (a1:=(ask_of f))(a2:=a)(l2:=(a0::A'))
                in H5. eauto. eauto. } 
@@ -810,7 +824,7 @@ destruct (Nat.eqb (tq f) (sq a - t)) eqn: Heq. (*EQ case*)
           specialize (H4 f). apply H4 in H9. assert (ask_of f >= a).  
           eapply Sorted_elim2 with (x:=ask_of f) in H2. unfold by_sp in H2.
           move /orP in H2. destruct H2.
-          { move /leP in H2. exact. }
+          { move /ltP in H2. lia. }
           { move /andP in H2. destruct H2. move /eqP in H2. lia. }
           auto. exact. 
           unfold rational in H9. unfold rational. simpl. lia. 
@@ -827,13 +841,12 @@ destruct (Nat.eqb (tq f) (sq a - t)) eqn: Heq. (*EQ case*)
             assert (In a (asks_of l) \/ ~In a (asks_of l)).
             eauto. destruct H9. 
             { simpl in H5. 
-              eapply Sorted_subset with (a1:=(ask_of f))(a2:=a)
-              (l2:=(l0))(l1:=(asks_of l))(lr:=by_sp) in H5.
-              assert (a=(ask_of f)). apply Hanti. apply /andP.
-              destruct H5. auto. subst a. elim Hbm.
-              auto. apply by_sp_P. apply by_sp_refl. 
-              eapply m_sp_and_by_sp in H3. simpl;auto. auto. 
-              simpl. right;auto. 
+              eapply Sorted_elim4 with (a0:=a)(x:=ask_of f) in H2. 
+               eapply m_sp_and_by_sp in H3. simpl in H3.
+               eapply Sorted_elim4 with (a0 := (ask_of f))(x:=a) in H3.
+               assert (a=(ask_of f)). apply by_sp_antisymmetric. apply /andP.
+               auto. subst. destruct Hbm. auto.
+               exact.  eapply included_elim2. eauto. 
             }
             { eapply  ttqa_elim in H9. lia. } 
           } 
@@ -847,7 +860,7 @@ destruct (Nat.eqb (tq f) (sq a - t)) eqn: Heq. (*EQ case*)
           eapply Sorted_elim2 with (x:=ask_of f) in H2. 
           unfold by_sp in H2.
           move /orP in H2. destruct H2.
-          { move /leP in H2. exact. }
+          { move /ltP in H2. lia. }
           { move /andP in H2. destruct H2. move /eqP in H2. lia. }
           auto. exact. unfold rational in H9. unfold rational. simpl. lia. 
         }
@@ -873,13 +886,12 @@ destruct (Nat.eqb (tq f) (sq a - t)) eqn: Heq. (*EQ case*)
             assert (In a (asks_of l) \/ ~In a (asks_of l)). eauto.
             destruct H9. 
             { simpl in H5. 
-              eapply Sorted_subset with (a1:=(ask_of f))(a2:=a)
-              (l2:=(a0::A'))(l1:=(asks_of l))(lr:=by_sp) in H5.
-              assert (a=(ask_of f)). apply Hanti. apply /andP.
-              destruct H5. auto. subst a. elim Hbm.
-              auto. apply by_sp_P. apply by_sp_refl. 
-              eapply m_sp_and_by_sp in H3. simpl;auto. auto. 
-              simpl. right;auto. 
+              eapply Sorted_elim4 with (a1:=a)(x:=ask_of f) in H2. 
+               eapply m_sp_and_by_sp in H3. simpl in H3.
+               eapply Sorted_elim4 with (a1 := (ask_of f))(x:=a) in H3.
+               assert (a=(ask_of f)). apply by_sp_antisymmetric. apply /andP.
+               auto. subst. destruct Hbm. auto.
+               exact.  eapply included_elim2. eauto.
             }
             { simpl in H5.
               eapply Subset_elim0 with (a1:=(ask_of f))(a2:=a)
@@ -901,7 +913,7 @@ Qed.
 
 Lemma FOA_IR (M: list fill_type)(A: list Ask)
 (NZT:(forall m, In m M -> (tq m) > 0) )
-(NDA:NoDup A) (Hanti: antisymmetric by_sp):
+(NDA:NoDup A):
 Sorted by_sp A -> 
 Sorted m_sp M -> 
 Is_IR M -> 
@@ -1180,8 +1192,7 @@ Proof. unfold FOA. induction A. rewrite FOA_aux_triv.
 
 
 Lemma FOA_matching (M: list fill_type)(B: list Bid)(A:list Ask)
-(NDA:NoDup A)(NDB:NoDup B) (NZT:(forall m, In m M -> (tq m) > 0))
-(Hanti: antisymmetric by_sp): 
+(NDA:NoDup A)(NDB:NoDup B) (NZT:(forall m, In m M -> (tq m) > 0)): 
 matching_in B A M -> 
 matching_in B A (FOA (sort m_sp M) (sort by_sp A)).
 Proof. unfold matching_in. unfold matching.
@@ -1225,8 +1236,7 @@ Qed.
 
          
 Theorem FOA_exists_and_correct (M: list fill_type)(B: list Bid)(A:list Ask)
-(NDA:NoDup A)(NDB:NoDup B)(NZT:(forall m, In m M -> (tq m) > 0))
-(Hanti: antisymmetric by_sp): 
+(NDA:NoDup A)(NDB:NoDup B)(NZT:(forall m, In m M -> (tq m) > 0)): 
 matching_in B A M ->
 (exists M', (matching_in B A M')/\(fair_on_asks M' A)/\(QM(M) = QM(M'))).
 Proof. exists (FOA (sort m_sp M) (sort by_sp A)).
@@ -1235,13 +1245,13 @@ split.
 split.
      { unfold fair_on_asks. intros.
        assert(Ha:In s (asks_of (FOA (sort m_sp M) (sort by_sp A)))). 
-       eapply FOA_aux_more_competative_in.
-       eauto. eauto. apply sort_correct. apply by_sp_P.
-       apply by_sp_P. eauto. destruct H0. eauto.
-       destruct H0. eauto. eauto. split. auto.
-       eapply FOA_asks_fair. all:auto. eauto. 
+       eapply FOA_aux_more_competative_in with (a1:=s)(a2:=s').
+       all: auto. eauto. eapply sort_correct. apply by_sp_P.
+       apply by_sp_P. destruct H0. eapply sort_intro in H0. eauto. 
+       destruct H0. eauto. split. auto.
+       eapply FOA_asks_fair with (a1:=s)(a2:=s'). all:auto. eauto. 
        apply sort_correct. apply by_sp_P.
-       apply by_sp_P. eauto. eauto.
+       apply by_sp_P.
      }
      replace (QM(M)) with (QM(sort m_sp M)). eapply FOA_size.
      

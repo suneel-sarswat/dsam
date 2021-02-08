@@ -19,6 +19,11 @@ Require Export mUM.
 
 Section MM.
 
+
+
+Hypothesis unique_timestampbid:forall b1 b2, (btime b1 = btime b2) -> b1 = b2.
+Hypothesis unique_timestampask:forall s1 s2, (stime s1 = stime s2) -> s1 = s2.
+
 Equations MM_aux (B:list Bid) (A: list Ask) (tb ta: nat): 
 (list fill_type) by wf (|B| + |A|):=
 MM_aux nil _ _ _:= nil;
@@ -45,10 +50,10 @@ lia. Qed.
 
 
 
-Definition by_dsp (s1:Ask) (s2:Ask) := (Nat.leb s2 s1) ||
-((Nat.eqb s2 s1) && (Nat.leb (stime s2)  (stime s1) )).
+Definition by_dsp (s1:Ask) (s2:Ask) := (Nat.ltb s2 s1) ||
+((Nat.eqb s2 s1) && (Nat.leb (stime s2) (stime s1) )).
 
-Lemma by_dsp_P : transitive by_dsp /\ comparable by_dsp.
+Lemma by_dsp_P : transitive by_dsp /\ DecSort.comparable by_dsp.
 Proof.  Proof.  { split.
           { unfold transitive. unfold by_dbp.  
             intros y x z H H1. move /orP in H1. move /orP in H.
@@ -59,17 +64,43 @@ Proof.  Proof.  { split.
             { move /andP in H0. destruct H0. left.
               move /leP in H. move /eqP in H0. apply /leP. lia. }
             { move /andP in H0. move /andP in H. destruct H0. destruct H.
-              left.
-              move /eqP in H. move /eqP in H0. apply /leP. lia. } }
-          { unfold comparable. unfold by_dsp. intros. move /orP in H.
-            assert (~ ((Nat.leb y x))). eauto. 
-            unfold not in H0. apply /orP. left. 
-            destruct x. destruct y. simpl in H0.
-            apply comp_triv. auto. } } Qed.
+              right.
+              apply /andP. split. move /eqP in H0. move /eqP in H. apply /eqP. lia. 
+              move /leP in H1. move /leP in H2. apply /leP. lia. } }
+          { unfold DecSort.comparable.
+              unfold by_dsp. intros.  intros. destruct x. destruct y.  simpl. 
+              assert((sp0 = sp)\/(sp0 < sp)\/(sp < sp0)). lia. destruct H.
+              subst. assert(Nat.ltb sp sp = false). apply /ltP. lia. rewrite H. simpl.
+              assert(Nat.eqb sp sp =true). auto. rewrite H0. simpl. 
+              assert((stime <= stime0)\/(stime0 < stime)). lia. destruct H1.
+              right. apply /leP. auto. left. apply /leP. lia.
+              destruct H. left. apply /orP. left. apply /ltP. auto. right.
+              apply /orP. left. apply /ltP. auto. } } Qed.
+
+
+
+Lemma by_dsp_antisymmetric : antisymmetric by_dsp.
+    Proof. unfold antisymmetric. intros. move /andP in H.
+    destruct H as [H2 H3].
+    unfold by_dsp in H2. unfold by_dsp in H3.
+    move /orP in H2. move /orP in H3. 
+    destruct H2;destruct H3. 
+    move /ltP in H. move /ltP in H0. lia. 
+    move /andP in H0. destruct H0. 
+    move /ltP in H. move /eqP in H0. lia. 
+    move /andP in H. destruct H. 
+    move /ltP in H0. move /eqP in H.
+    lia.
+    move /andP in H. destruct H. 
+    move /leP in H1.  
+    move /andP in H0. destruct H0. 
+    move /leP in H2. apply unique_timestampask. lia.
+Qed.
+
 
 Lemma by_dsp_refl: reflexive by_dsp.
 Proof. unfold reflexive. intros. unfold by_dsp. apply /orP. 
-left. apply nat_reflexive.  Qed.
+right. apply /andP. split. auto. apply nat_reflexive.  Qed.
 
 
 Hint Resolve by_dsp_P by_dsp_refl: core.
@@ -383,7 +414,7 @@ Qed.
 (*Move this lemma into another file*)
 Lemma exists_ttq_top_bid 
 (B:list Bid)(A:list Ask)(M:list fill_type)(b:Bid)
-(Hanti:antisymmetric by_dbp )(NDA:NoDup A)(NDB:NoDup (b::B))
+(NDA:NoDup A)(NDB:NoDup (b::B))
 (NZB:(forall b0, In b0 (b :: B) -> bq b0 > 0))
 (NZT:forall m : fill_type, In m M -> tq m > 0):
 Sorted by_dbp (b::B) -> 
@@ -424,7 +455,7 @@ Proof.   intros.
          assert(Htq:ttqb M' b = min (bq b) (QM(M))).
          assert(HB:(sort by_dbp (b::B))  = b::B).
          {
-           apply sort_equal_nodup. apply by_dbp_refl. apply Hanti.
+           apply sort_equal_nodup. apply by_dbp_refl.  apply by_dbp_antisymmetric.
            all: auto.
          }
          subst M'. rewrite HB.
@@ -845,7 +876,6 @@ Lemma MM_exists_opt (B:list Bid)(A:list Ask)(M:list fill_type)(b:Bid)(a:Ask)
 (NZT: forall m : fill_type, In m M -> tq m > 0)
 (NZA:(forall a0, In a0 (a::A) -> (sq a0) > 0))
 (NZB:(forall b0, In b0 (b :: B) -> bq b0 > 0))
-(Hanti: (antisymmetric by_dsp)/\(antisymmetric by_dbp))
 (NDA:NoDup (idas_of (a::A)))(NDB:NoDup (idbs_of (b::B))):
 Sorted by_dbp (b::B) -> 
 Sorted by_dsp (a::A) -> 
@@ -861,7 +891,7 @@ Proof. intros.
        (ttqb M' b >= min (bq b) (QM(M)))/\Is_IR M'/\QM(M)=QM(M')/\
        forall m : fill_type, In m M' -> tq m > 0).
        eapply exists_ttq_top_bid. all:auto. 
-       apply Hanti. destruct H5 as [M0 H5].
+       destruct H5 as [M0 H5].
        destruct H5. destruct H6. destruct H7. 
        destruct (Nat.min (bq b) (sq a) - ttq_ab M0 b a) eqn:Hk.
        {
@@ -974,8 +1004,7 @@ Theorem MM_aux_OPT (B:list Bid)(A:list Ask)(M:list fill_type)
 (NDA:NoDup (ida a::(idas_of A)))(NDB:NoDup (idb b::(idbs_of B)))
 (NZT: forall m : fill_type, In m M -> tq m > 0)
 (NZB: forall b0, In b0 ((Mk_bid (bp b) (btime b) (bq b - tb) (idb b))::B) -> (bq b0)>0)
-(NZA: forall a0, In a0 ((Mk_ask (sp a) (stime a) (sq a - ta) (ida a))::A) -> (sq a0)>0)
-(Hanti: (antisymmetric by_dsp)/\(antisymmetric by_dbp)):
+(NZA: forall a0, In a0 ((Mk_ask (sp a) (stime a) (sq a - ta) (ida a))::A) -> (sq a0)>0):
 Sorted by_dbp (b::B) -> 
 Sorted by_dsp (a::A) -> 
 matching_in ((Mk_bid (bp b) (btime b) (bq b - tb) (idb b))::B)
@@ -1221,8 +1250,7 @@ Theorem MM_aux_optimal (B:list Bid)(A:list Ask)(M:list fill_type)
 (NZA: forall a, In a A -> (sq a)>0)
 (NDA:NoDup (idas_of A))
 (NDB:NoDup (idbs_of B))
-(NZT: forall m : fill_type, In m M -> tq m > 0)
-(Hanti: (antisymmetric by_dsp)/\(antisymmetric by_dbp)):
+(NZT: forall m : fill_type, In m M -> tq m > 0):
 Sorted by_dbp B -> 
 Sorted by_dsp A ->
 matching_in B A M ->
@@ -1253,8 +1281,5 @@ Proof. intros. case B as [|b B'].
          replace (sq a - 0) with (sq a).
          destruct b. destruct a. simpl. auto.
          lia. lia.
-       }
-Qed.  
-
-
+       } Qed.
 End MM.

@@ -8,3 +8,7 @@ The file 'CompileAndRunAll.sh' to compile/build everything from terminal; "$ sh 
 
 The certified outputs will be created by CompileAndRunAll.sh in the directory 'certifired_directory'.
 
+A row in the file 'si.bid' or 'si.ask' corresponds to an order in stock si. It contains id, time, limit price and quantity. 
+
+A row in 'si.trade' coreesponds to a transation in stock si. It contains matched bid id, ask id, trade price and quantity.
+

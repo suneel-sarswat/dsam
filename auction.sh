@@ -1,63 +1,63 @@
 #!/bin/bash
 
 
-printf ‘GenReflect
+printf "Compiling Basic list libraries.\n"
 coqc GenReflect.v
 
-printf ‘SetSpecs.v
 coqc SetSpecs.v
 
-printf ‘DecSort.v
-coqc DecSort.v
-
-printf ‘MinMax.v
 coqc MinMax.v
 
-printf ‘DecType.v
+coqc DecSort.v
+
 coqc DecType.v
 
-printf ‘SetReflect.v
 coqc SetReflect.v
 
-printf ‘DecList.v
 coqc DecList.v
 
-printf ‘MoreDecList.v
 coqc MoreDecList.v
 
-printf ‘mBidAsk.v
+printf "Compiling auction libraries.\n"
 coqc mBidAsk.v
 
-printf ‘Quantity.v
 coqc Quantity.v
 
-printf ‘MQMatching.v
 coqc mMatching.v
 
-printf ‘Fair_bids.v
+printf "Compiling Fair on Bid: this may take some time.\n"
 coqc mFair_Bid.v
 
-printf ‘Fair_asks.v
+printf "Compiling Fair on Ask: this may take some time.\n"
 coqc mFair_Ask.v
 
-printf ‘Fair.v
+printf "Compiling Fair: this takes a few minutes.\n"
 coqc MQFair.v
 
+printf "Compiling UM: this takes a few minutes.\n"
 coqc MatchingAlter.v
 
-printf ‘UM
 coqc mUM.v
 
 coqc MQUM.v
 
-printf ‘MM
+
+printf "Compiling MM: this takes a few minutes.\n"
 coqc mMM.v
 
 coqc MQMM.v
 
-printf ‘Bound
+printf "Compiling Bounds and Uniqueness.\n"
 coqc Bound.v
 
+coqc Uniqueness.v
+
+printf "Extracting codes into Demonstration directory. See Demo.v file for more details .\n"
+
+coqc Demo.v
+
+
+printf "Completed compiling all the files!"
 echo \
 
 

@@ -4,7 +4,8 @@ This folder contains the coq formalization of double-sided auctions with multipl
 DSA is used in the financial markets by exchanges for trading between multiple buyers with multiple sellers. 
 For example,  double-sided auction with multiplicity is used during the call auction session of trading at a stock exchange. 
 In this formalization, we have modeled and formalized various properties of double sided auction along with their algorithms. 
-We also have a certified OCaml, Haskell programs for matching buyers with seller at the stock exchange during call auction session.
+We extract a certified OCaml, Haskell programs for matching buyers with seller at the stock exchange during call auction session.
+We also have demonstrated our extracted OCaml programs on real market data. Please see directory Demonstration.
 
 #How to use the coq formalization: To compile the code please run the executable shell script auction.sh
 
@@ -21,6 +22,7 @@ type the following command from your terminal:
 2. The UM process and its correctness theorems are in MQUM.v. The UM process is used at the exchanges.
 3. For MM process, go to the file MQMM.v.
 4. The Bound.v file contains combinatorial results on matchings. 
+5. The Uniqueness.v file contains uniqueness related results.
 
 Following are some of the important observations about some of the pre-conditions.
 
@@ -37,7 +39,5 @@ Note3: Each bid or ask is assigned a unique time stamp and unique id
 on arrival. So it is easy to see that we do not have two bids or asks with 
 same ids in the lists B and A. These assertions are denoted as 'NDA' and 'NDB'.
 
-Note4: (Similar to Note3) since a bid or ask has a unique time-stamp and 
-time-stamp is also used to prioritize them, they have complete order between them. 
-This means we can assert that the sorting criteria is anti-symmetric. 
-These assertions are denoted as 'Hanti'.
+Note4: (Similar to Note3) since a bid or ask has a unique time-stamp, we have two natural hypothesis that not two different orders for same securities should be 
+assigned same time-stamp. This is natural, otherwise it is difficult to break the tie for the competitiveness in the markets.

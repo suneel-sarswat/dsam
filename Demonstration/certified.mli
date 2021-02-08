@@ -76,18 +76,18 @@ val fOA_aux : fill_type list -> ask list -> int -> fill_type list
 
 val fOA : fill_type list -> ask list -> fill_type list
 
+val fAIR : fill_type list -> bid list -> ask list -> fill_type list
+
 val uM_aux : bid list -> ask list -> int -> int -> fill_type list
 
 val replace_column : fill_type list -> int -> fill_type list
 
 val uniform_price : bid list -> ask list -> int
 
+val uM : bid list -> ask list -> fill_type list
+
 val mM_aux : bid list -> ask list -> int -> int -> fill_type list
 
 val by_dsp : ask -> ask -> bool
-
-val fAIR : fill_type list -> bid list -> ask list -> fill_type list
-
-val uM : bid list -> ask list -> fill_type list
 
 val mM : bid list -> ask list -> fill_type list

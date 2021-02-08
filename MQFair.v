@@ -39,6 +39,11 @@ Require Export mFair_Ask.
 
 Section Fair.
 
+
+Hypothesis unique_timestampbid:forall b1 b2, (btime b1 = btime b2) -> b1 = b2.
+Hypothesis unique_timestampask:forall s1 s2, (stime s1 = stime s2) -> s1 = s2.
+
+
 Definition Is_fair (M: list fill_type) (B: list Bid) (A: list Ask) 
   :=  fair_on_asks M A /\ fair_on_bids M B.
 
@@ -144,8 +149,7 @@ Proof. intros. apply FOB_aux_ttqb_QM with (t:=0). auto. auto. lia. Qed.
 Lemma FAIR_ttq (M: list fill_type)(B: list Bid)(A:list Ask)
 (a:Ask)(b:Bid)(NDB: NoDup (b::B))(NDA: NoDup (a::A))
 (NZT:(forall m, In m M -> (tq m) > 0))
-(NZA:(forall a0, In a0 (a::A) -> (sq a0) > 0))
-(Hanti: (antisymmetric by_sp)/\(antisymmetric by_dbp) ):
+(NZA:(forall a0, In a0 (a::A) -> (sq a0) > 0)):
 Sorted by_dbp (b::B) -> 
 Sorted by_sp (a::A) -> 
 (matching_in (b::B) (a::A) M) ->
@@ -155,12 +159,12 @@ ttqb (FAIR M (b::B) (a::A)) b >= Nat.min (bq b) (sq a).
 Proof. { intros H H0 HM HQ. unfold FAIR. 
        assert(HA:(sort by_sp (a::A)) = a::A).
        { 
-        apply sort_equal_nodup. apply by_sp_refl. apply Hanti.
+        apply sort_equal_nodup. apply by_sp_refl. apply by_sp_antisymmetric. auto.
         all: auto. 
        }
        assert(HB:(sort by_dbp (b::B))  = b::B).
        {
-        apply sort_equal_nodup. apply by_dbp_refl. apply Hanti.
+        apply sort_equal_nodup. apply by_dbp_refl. apply by_dbp_antisymmetric. auto.
         all: auto.
        }
        rewrite HA. rewrite HB.
@@ -276,8 +280,7 @@ Lemma FAIR_NZT (M: list fill_type)(B: list Bid)(A:list Ask)
 (a:Ask)(b:Bid)(NDB: NoDup (b::B))(NDA: NoDup (a::A))
 (NZT:(forall m, In m M -> (tq m) > 0))
 (NZA:(forall a0, In a0 (a::A) -> (sq a0) > 0))
-(NZB:(forall b0, In b0 (b :: B) -> bq b0 > 0))
-(Hanti: (antisymmetric by_sp)/\(antisymmetric by_dbp) ):
+(NZB:(forall b0, In b0 (b :: B) -> bq b0 > 0)):
 Sorted by_dbp (b::B) -> 
 Sorted by_sp (a::A) -> 
 (matching_in (b::B) (a::A) M) ->
@@ -296,26 +299,23 @@ eauto. all:auto. eauto. Qed.
 
 Theorem FAIR_is_matching (M: list fill_type)(B: list Bid)(A:list Ask)(NDB: NoDup B)(NDA: NoDup A)
 (NZT:(forall m, In m M -> (tq m) > 0))
-(NZA:(forall a0, In a0 A -> (sq a0) > 0))
-(Hanti: (antisymmetric by_sp)/\(antisymmetric by_dbp) ): 
+(NZA:(forall a0, In a0 A -> (sq a0) > 0)): 
 matching_in B A M-> matching_in B A (FAIR M B A).
-Proof. intros. unfold FAIR. apply FOB_matching.
+Proof. intros. unfold FAIR. apply FOB_matching. auto.
        eauto. eauto. apply FOA_NZT. eauto. eauto. eauto.
-       apply Hanti. apply FOA_matching.
-       eauto. eauto. auto.
-       apply Hanti. auto. Qed.
+       apply FOA_matching.
+       eauto. eauto. auto. auto. auto. Qed.
 
 
 Lemma FAIR_is_IR (M: list fill_type)(B: list Bid)(A:list Ask)(NDB: NoDup B)(NDA: NoDup A)
 (NZT:(forall m, In m M -> (tq m) > 0))
-(NZA:(forall a0, In a0 A -> (sq a0) > 0))
-(Hanti: (antisymmetric by_sp)/\(antisymmetric by_dbp) ): 
+(NZA:(forall a0, In a0 A -> (sq a0) > 0)): 
 Is_IR M -> matching_in B A M-> Is_IR (FAIR M B A).
 Proof. intros. unfold FAIR. 
        set(M0:=(sort m_dbp (FOA (sort m_sp M) (sort by_sp A)))).
        assert(M0match':matching_in B A (FOA (sort m_sp M) (sort by_sp A))).
        {
-          eapply FOA_matching in H0. all:auto. apply Hanti. }
+          eapply FOA_matching in H0. all:auto. }
           assert(M0match:matching_in B A M0).
           {
           eapply match_inv with (A':=A) (M':=M0)(B':=B) in M0match'. auto.
@@ -327,7 +327,7 @@ Proof. intros. unfold FAIR.
        eauto. apply FOA_IR with (M:=(sort m_sp M))(A:= (sort by_sp A)) in H2. auto.
          { eauto. }
          {eauto. }
-         { apply Hanti. }
+         { eauto. }
          { apply sort_correct. apply by_sp_P. apply by_sp_P. }
          { apply sort_correct. apply m_sp_P. apply m_sp_P. }
          { unfold Is_IR. intros. eauto. } 
@@ -338,16 +338,16 @@ Proof. intros. unfold FAIR.
            destruct H4. apply H0. auto. apply ttqa_elim in H4. lia.
          } 
        }
-       apply FOB_IR. 
+       apply FOB_IR.
+       {  apply unique_timestampbid. } 
        { (*NZT*) intros. assert(In m (FOA (sort m_sp M) (sort by_sp A))).
                 eauto. eapply FOA_NZT with (M:=(sort m_sp M))(A:=(sort by_sp A)).
                 eauto. eauto.  eauto. auto.
        }
-       { eauto. }
-       { apply Hanti. }
+       { eauto. } 
        { apply sort_correct. apply by_dbp_P. apply by_dbp_P. }
-       { apply sort_correct. apply m_dbp_P. apply m_dbp_P. }
-       { auto. }
+        { apply sort_correct. apply m_dbp_P. apply m_dbp_P. }
+       { subst M0. eauto. }
        { assert(bids_of M0 [<=] B). apply M0match. eauto. }
        { intros. assert(In b0 (bids_of M0)\/~In b0 (bids_of M0)). eauto.
          destruct H2. apply M0match. auto. apply ttqb_elim in H2. lia.
@@ -376,7 +376,6 @@ apply FOB_uniform. auto. Qed.
        
 Theorem FAIR_is_fair (M: list fill_type)(B: list Bid)(A:list Ask)(NDB: NoDup B)
         (NDA: NoDup A)(NZT:(forall m, In m M -> (tq m) > 0))
-        (Hanti: (antisymmetric by_sp)/\(antisymmetric by_dbp) )
         (NZA:(forall a0, In a0 A -> (sq a0) > 0)): 
         matching_in B A M-> Is_fair (FAIR M B A) B A.
 Proof. {  intros. unfold FAIR. unfold Is_fair.
@@ -386,7 +385,7 @@ Proof. {  intros. unfold FAIR. unfold Is_fair.
           auto. eauto. eauto. eauto. }
           assert(M0match':matching_in B A (FOA (sort m_sp M) (sort by_sp A))).
           {
-          eapply FOA_matching in H. all:auto. apply Hanti. }
+          eapply FOA_matching in H. all:auto.  }
           set(M0:=(sort m_dbp (FOA (sort m_sp M) (sort by_sp A)))).
           assert(M0match:matching_in B A M0).
           {
@@ -398,7 +397,7 @@ Proof. {  intros. unfold FAIR. unfold Is_fair.
             { assert(HAa:In s (asks_of (FOA (sort m_sp M) (sort by_sp A)))).
               {
               eapply FOA_aux_more_competative_in with(a2:=s').
-              eauto. eauto. apply sort_correct. apply by_sp_P. apply by_sp_P.
+              eauto. eauto. eauto. eauto. apply sort_correct. apply by_sp_P. apply by_sp_P.
               auto. eauto. eauto. 
               assert((asks_of (FOB (sort m_dbp (FOA (sort m_sp M) 
               (sort by_sp A))) (sort by_dbp B))) [<=] 
@@ -435,17 +434,19 @@ Proof. {  intros. unfold FAIR. unfold Is_fair.
          eauto. eauto.  eauto. auto. rewrite <- QM_equal_QMb with (B:=sort by_dbp B).
          eapply fill_size_vs_bid_size.
          all:auto. intros. assert(In b (bids_of M0)\/~In b (bids_of M0)).
-         eauto. destruct H7. apply M0match. auto.
-         apply ttqb_elim in H7. lia.
+         eauto. destruct H8. apply M0match. auto.
+         apply ttqb_elim in H8. lia.
          assert(bids_of M0 [<=] B). eapply M0match. eauto.
          }
-         rewrite <- H6. assert(ttqa M0 s = ttqa (FOA (sort m_sp M) (sort by_sp A)) s).
+         rewrite <- H7. assert(ttqa M0 s = ttqa (FOA (sort m_sp M) (sort by_sp A)) s).
          {
          apply ttqa_of_perm. subst M0. eauto. }
-         rewrite H7. symmetry. apply FOA_asks_fair with (a1:=s)(a2:=s').
+         rewrite H8. symmetry. apply FOA_asks_fair with (a1:=s)(a2:=s').
          { eauto. }
          { eauto. } 
-         { apply sort_correct. apply by_sp_P. apply by_sp_P. }
+         {eauto. }
+          { eauto. } 
+        { apply sort_correct. apply by_sp_P. apply by_sp_P. }
          { auto. }
          { eapply FOA_aux_more_competative_in with(a2:=s').
            all:auto. eauto. apply sort_correct. apply by_sp_P. apply by_sp_P. }
@@ -463,16 +464,16 @@ Proof. {  intros. unfold FAIR. unfold Is_fair.
            apply by_dbp_P. }
            { eauto. }
            { destruct H0. eapply sort_intro in H0.  eauto. }
-           { destruct H0. eapply sort_intro in H4.  eauto.
+           { destruct H0. destruct H4. eapply sort_intro in H4.  eauto.
            }
            { auto. } 
          }
          {
-          eapply FOB_bids_fair. all:auto. intros.
+          eapply FOB_bids_fair with (b2:=b'). all:auto. intros.
           { intros. assert(In m (FOA (sort m_sp M) (sort by_sp A))).
             eauto. eapply FOA_NZT with (M:=(sort m_sp M))(A:=(sort by_sp A)).
             eauto. eauto.  eauto. auto.
-          }
+          } apply H0.
           eapply sort_correct. apply by_dbp_P.
           apply by_dbp_P. eauto. destruct H0.
           auto. eapply FOB_aux_more_competative_in. all:auto. 
@@ -484,15 +485,14 @@ Proof. {  intros. unfold FAIR. unfold Is_fair.
             apply by_dbp_P.
           }
           { eauto. }
-          { apply sort_intro with (lr:=by_dbp) in H0. eauto. }
-          { apply sort_intro with (lr:=by_dbp) in H4.  eauto. }
+          { apply sort_intro with (lr:=by_dbp) in H0. destruct H4. eauto. }
+          { destruct H4. apply sort_intro with (lr:=by_dbp) in H4. eauto. }
      } } } Qed.
 
 Theorem FAIR_Quantity
  (M: list fill_type)(B: list Bid)(A:list Ask)(NDB: NoDup B)
         (NDA: NoDup A)(NZT:(forall m, In m M -> (tq m) > 0))
-                (NZA:(forall a0, In a0 A -> (sq a0) > 0))
-        (Hanti: (antisymmetric by_sp)/\(antisymmetric by_dbp) ): 
+                (NZA:(forall a0, In a0 A -> (sq a0) > 0)): 
         matching_in B A M-> QM(M) = QM(FAIR M B A).
 Proof. 
           intros. unfold FAIR. unfold Is_fair.
@@ -503,7 +503,7 @@ Proof.
           auto. eauto. eauto. eauto. }
           assert(M0match':matching_in B A (FOA (sort m_sp M) (sort by_sp A))).
           {
-          eapply FOA_matching in H. all:auto. apply Hanti. }
+          eapply FOA_matching in H. all:auto. }
           set(M0:=(sort m_dbp (FOA (sort m_sp M) (sort by_sp A)))).
           assert(M0match:matching_in B A M0).
           {
@@ -532,8 +532,7 @@ Proof.
        
 Theorem FAIR_correct (M: list fill_type)(B: list Bid)(A:list Ask)(NDB: NoDup B)
         (NDA: NoDup A)(NZT:(forall m, In m M -> (tq m) > 0))
-         (NZA:(forall a0, In a0 A -> (sq a0) > 0))
-        (Hanti: (antisymmetric by_sp)/\(antisymmetric by_dbp) ): 
+         (NZA:(forall a0, In a0 A -> (sq a0) > 0)): 
         matching_in B A M-> 
         (matching_in B A (FAIR M B A))/\(Is_fair (FAIR M B A) B A)/\(QM(M)= QM((FAIR M B A))).
 Proof. intros. apply FAIR_is_matching in H as H1. apply FAIR_Quantity in H as H2.
@@ -543,8 +542,7 @@ Proof. intros. apply FAIR_is_matching in H as H1. apply FAIR_Quantity in H as H2
 
 Theorem exists_fair_matching(M: list fill_type)(B: list Bid)(A:list Ask)(NDB: NoDup B)
         (NDA: NoDup A)(NZT:(forall m, In m M -> (tq m) > 0))
-         (NZA:(forall a0, In a0 A -> (sq a0) > 0))
-        (Hanti: (antisymmetric by_sp)/\(antisymmetric by_dbp) ): matching_in B A M->
+         (NZA:(forall a0, In a0 A -> (sq a0) > 0)): matching_in B A M->
                         (exists M':list fill_type, matching_in B A M' 
                         /\ Is_fair M' B A /\ QM(M) = QM(M')).
 Proof. intros. exists (FAIR M B A). apply FAIR_correct. all:auto. Qed.

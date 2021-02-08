@@ -17,6 +17,11 @@ Require Export MatchingAlter.
 
 Section UM.
 
+
+Hypothesis unique_timestampbid:forall b1 b2, (btime b1 = btime b2) -> b1 = b2.
+Hypothesis unique_timestampask:forall s1 s2, (stime s1 = stime s2) -> s1 = s2.
+
+
 Definition Is_uniform M B A := (Uniform M /\ matching_in B A M /\ Is_IR M).
 
 Definition optimal_uniform (M : list fill_type)(B: list Bid)(A: list Ask) :=
@@ -243,9 +248,9 @@ Proof. { intros H1 H2 H3. unfold uniform_price.
          symmetry.
          eapply bid_of_last_and_last_of_bids with (F:= ((UM_aux B A 0 0))). auto. rewrite <- Hlastb.
          eapply last_in_Sorted. apply by_dbp_P. apply by_dbp_refl. exact H4. auto.
-         unfold by_dbp in H5.  move /orP in H5.
-         destruct H5. move /leP in H. auto.
-          move /andP in H.
+         unfold by_dbp in H5. move /orP in H5.
+         destruct H5. move /ltP in H. lia. 
+          move /andP in H. 
          destruct H. move /eqP in H. lia. } Qed.
   
 Lemma UM_aux_bids_ge_asks (B: list Bid) (A:list Ask)(ta tb:nat) (m: fill_type):
@@ -649,10 +654,10 @@ Proof. intros. split.
 
 
 Lemma UM_aux_ttqb_fair_bid_t (B:list Bid) (A:list Ask)(tb ta:nat)(b b1 b2:Bid)
-(NDB: NoDup (idbs_of (b::B)))(NDA: NoDup (idas_of A)):
+(NDB: NoDup (idbs_of (b::B)))(NDA: NoDup (idas_of A))(Hnot:b1<>b2):
 Sorted by_dbp (b::B) -> 
 Sorted by_sp  A -> 
-b1>b2 -> 
+by_dbp b1 b2 -> 
 In b1 (bids_of (UM_aux (b::B) A tb ta)) -> 
 In b2 (bids_of (UM_aux (b::B) A tb ta)) ->  
 (b1=b -> ttqb (UM_aux (b::B) A tb ta) b1 = bq b1 - tb )/\
@@ -660,11 +665,10 @@ In b2 (bids_of (UM_aux (b::B) A tb ta)) ->
 Proof. funelim (UM_aux (b::B) A tb ta). auto.
 { intros. destruct (b_eqb b1 b ) eqn: Hbb1. 
   { move /eqP in Hbb1. subst b1. split.
-    intros. eapply UM_aux_ttqb_b with (b0:=b2). auto. auto. 
+    intros. eapply UM_aux_ttqb_b with (b0:=b2). auto. auto. auto.
     destruct (b_eqb b b2) eqn:Hb0b. move /eqP in Hb0b.
-    subst b. destruct b2. simpl in H4. lia.
-    move /eqP in Hb0b. auto. auto. intros. 
-    elim H7. auto. 
+    subst b. destruct Hnot. auto. 
+    move /eqP in Hb0b. auto. auto.
   }
   { split;intros. 
     { subst b1. move /eqP in Hbb1. auto. }
@@ -679,12 +683,11 @@ Proof. funelim (UM_aux (b::B) A tb ta). auto.
           { subst b1;auto. }
           { subst b2. assert (In b1 l). 
             eapply UM_aux_subset_bidsB. eauto.
-            assert(b>b1). 
-            { eapply Sorted_elim4 with (a0:=b)(x:=b1)(lr:=by_dbp) in H2. 
-              unfold by_dbp in H2. move /orP in H2. destruct H2. 
-              move /leP in H2. lia. move /andP in H2;destruct H2.
-              move /eqP in H2. lia. auto.  } 
-              lia. }
+            eapply Sorted_elim4 with (a0:=b)(x:=b1)(lr:=by_dbp) in H2. 
+            assert(b=b1). apply by_dbp_antisymmetric. 
+            auto.  apply /andP.
+            auto. subst. destruct H7. auto.
+            exact. }
           { case l as [| b0 B'] eqn:Hl.
             { simp UM_aux in H5. simpl in H4. auto. }
             { destruct (b_eqb b1 b0) eqn: Hbb0. 
@@ -692,11 +695,11 @@ Proof. funelim (UM_aux (b::B) A tb ta). auto.
                 eapply UM_aux_ttqb_b with (b0:=b2).
                 eauto. eauto. 
                 destruct (b_eqb b2 b1) eqn:Hb2b1. move /eqP in Hb2b1.
-                subst b1. destruct b2. simpl in H4. lia.
+                subst b1. destruct Hnot. auto.
                 move /eqP in Hb2b1. auto. auto. lia.
               }
-              { move /eqP in Hbb0. eapply H in Hbb0.
-                all: eauto. 
+              { move /eqP in Hbb0. eapply H with (b2:=b2)(b:=b0)(B:=B')(ta:=0)(tb:=0)(A:=l0).
+                all: try auto. all: eauto. 
               } 
             }
           }
@@ -710,13 +713,11 @@ Proof. funelim (UM_aux (b::B) A tb ta). auto.
             { subst b1;auto. }
             { subst b2. assert (In b1 l). 
               eapply UM_aux_subset_bidsB. eauto.
-              assert(b>b1). 
-              { eapply Sorted_elim4 with (a0:=b)(x:=b1)(lr:=by_dbp) in H2. 
-                unfold by_dbp in H2. move /orP in H2. destruct H2. 
-                move /leP in H2. lia. move /andP in H2;destruct H2.
-                move /eqP in H2. lia. auto.  
-              } 
-              lia. 
+              eapply Sorted_elim4 with (a0:=b)(x:=b1)(lr:=by_dbp) in H2. 
+              assert(b=b1). apply by_dbp_antisymmetric. 
+              auto.  apply /andP.
+              auto. subst. destruct H7. auto.
+              exact.
             }
             { case l as [| b0 B'] eqn:Hl.
               { simp UM_aux in H5. simpl in H4. auto. }
@@ -725,11 +726,11 @@ Proof. funelim (UM_aux (b::B) A tb ta). auto.
                   eapply UM_aux_ttqb_b with (b0:=b2).
                   eauto. eauto. 
                   destruct (b_eqb b2 b1) eqn:Hb2b1. move /eqP in Hb2b1.
-                  subst b1. destruct b2. simpl in H4. lia.
+                  subst b1. destruct Hnot. auto.
                   move /eqP in Hb2b1. auto. auto. lia.
                 }
-                { move /eqP in Hbb0. eapply H0 in Hbb0.
-                  all: eauto. 
+                { move /eqP in Hbb0. eapply H0 with (tb0:=0)(ta0:=(ta + (bq b - tb)))(b2:=b1)(b3:=b2).
+                  all: try auto. eauto. eauto.
                 } 
               }
             }
@@ -742,16 +743,14 @@ Proof. funelim (UM_aux (b::B) A tb ta). auto.
             { subst b1;auto. }
             { subst b2. assert (In b1 (b::l)). 
               eapply UM_aux_subset_bidsB. eauto.
-              assert(b>b1). 
-              { eapply Sorted_elim4 with (a0:=b)(x:=b1)(lr:=by_dbp) in H2. 
-                unfold by_dbp in H2. move /orP in H2. destruct H2. 
-                move /leP in H2. lia. move /andP in H2;destruct H2.
-                move /eqP in H2. lia. destruct H6.
-                subst b. elim H7. auto. auto.  
-              } 
-              lia. 
+              eapply Sorted_elim4 with (a0:=b)(x:=b1)(lr:=by_dbp) in H2. 
+              assert(b=b1). apply by_dbp_antisymmetric. 
+              auto.  apply /andP.
+              auto. subst. destruct H7. auto. 
+              destruct H6. subst b. destruct H7. auto. exact.
             }
-            { eapply H1 in H7. all: eauto. 
+            { eapply H1 in H4 as H8. all: try auto. apply H8.  auto.
+              eauto. eauto.  
             }
           }
         }
@@ -766,10 +765,10 @@ Qed.
 
 
 Lemma UM_aux_ttqb_fair_ask_t (B:list Bid) (A:list Ask)(tb ta:nat)(a a1 a2:Ask)
-(NDB: NoDup (idbs_of B))(NDA: NoDup (idas_of (a::A))):
+(NDB: NoDup (idbs_of B))(NDA: NoDup (idas_of (a::A))) (Hnot: a1<>a2):
 Sorted by_dbp (B) -> 
 Sorted by_sp  (a::A) -> 
-a1<a2 -> 
+by_sp a1 a2 -> 
 In a1 (asks_of (UM_aux (B) (a::A) tb ta)) -> 
 In a2 (asks_of (UM_aux (B) (a::A) tb ta)) ->  
 (a1=a -> ttqa (UM_aux (B) (a::A) tb ta) a1 = sq a1 - ta )/\
@@ -779,9 +778,9 @@ Proof. funelim (UM_aux (B) (a::A) tb ta). auto.
   { move /eqP in Haa1. subst a1. split.
     intros. eapply UM_aux_ttqa_a with (a0:=a2). auto. auto. 
     destruct (a_eqb a a2) eqn:Ha0a. move /eqP in Ha0a.
-    subst a. destruct a2. simpl in H4. lia.
-    move /eqP in Ha0a. auto. auto. intros. 
-    elim H7. auto. 
+    subst a. destruct Hnot. auto. 
+    move /eqP in Ha0a. auto. auto. intros.
+    destruct H7. auto.
   }
   { split;intros. 
     { subst a1. move /eqP in Haa1. auto. }
@@ -796,12 +795,12 @@ Proof. funelim (UM_aux (B) (a::A) tb ta). auto.
           { subst a1;auto. }
           { subst a2. assert (In a1 l0). 
             eapply UM_aux_subset_asksA. eauto.
-            assert(a<a1). 
-            { eapply Sorted_elim4 with (a0:=a)(x:=a1)(lr:=by_sp) in H3. 
-              unfold by_sp in H3. move /orP in H3. destruct H3. 
-              move /leP in H3. lia. move /andP in H3;destruct H3.
-              move /eqP in H3. lia. auto.  } 
-              lia. }
+            eapply Sorted_elim4 with (a0:=a)(x:=a1)(lr:=by_sp) in H3.
+            assert(a=a1). apply by_sp_antisymmetric. 
+            auto.  apply /andP.
+            auto. subst. destruct H7. auto.
+            exact. 
+          }
           { case l0 as [| a0 A'] eqn:Hl0.
             { destruct l. simp UM_aux in H5. simpl in H5. auto.
                simp UM_aux in H5. simpl in H5. auto. }
@@ -810,10 +809,10 @@ Proof. funelim (UM_aux (B) (a::A) tb ta). auto.
                 eapply UM_aux_ttqa_a with (a0:=a2).
                 eauto. eauto. 
                 destruct (a_eqb a2 a1) eqn:Ha2a1. move /eqP in Ha2a1.
-                subst a1. destruct a2. simpl in H4. lia.
+                subst a1. destruct Hnot. auto.
                 move /eqP in Ha2a1. auto. auto. lia.
               }
-              { move /eqP in Haa0. eapply H in Haa0.
+              { move /eqP in Haa0. eapply H with (a2:=a2)(a:=a0)(A:=A')(tb:=0)(ta:=0)(B:=l).
                 all: eauto. 
               } 
             }
@@ -828,18 +827,15 @@ Proof. funelim (UM_aux (B) (a::A) tb ta). auto.
             { subst a1;auto. }
             { subst a2. assert (In a1 (a::l0)). 
               eapply UM_aux_subset_asksA. eauto.
-              assert(a<a1). 
-              { eapply Sorted_elim4 with (a0:=a)(x:=a1)(lr:=by_sp) in H3. 
-                unfold by_sp in H3. move /orP in H3. destruct H3. 
-                move /leP in H3. lia. move /andP in H3;destruct H3.
-                move /eqP in H3. lia. destruct H6.
-                subst a. elim H7. auto. auto.  
-              } 
-              lia. 
+              eapply Sorted_elim4 with (a0:=a)(x:=a1)(lr:=by_sp) in H3. 
+              assert(a=a1). apply by_sp_antisymmetric. 
+              auto.  apply /andP.
+              auto. subst. destruct H7. auto.
+              destruct H6. subst. destruct Hnot. auto. exact.
             }
-            { eapply H0 in H7. all: eauto. 
+            { eapply H0 with (a2:=a2). all: try auto. eauto. eauto.
             }
-          }
+          } 
           { simpl. rewrite Haa1.           
             rewrite<- Heqcall in H5. simpl in H5. 
             rewrite<- Heqcall in H6. simpl in H6. 
@@ -848,13 +844,10 @@ Proof. funelim (UM_aux (B) (a::A) tb ta). auto.
             { subst a1;auto. }
             { subst a2. assert (In a1 l0). 
               eapply UM_aux_subset_asksA. eauto.
-              assert(a<a1). 
-              { eapply Sorted_elim4 with (a0:=a)(x:=a1)(lr:=by_sp) in H3. 
-                unfold by_sp in H3. move /orP in H3. destruct H3. 
-                move /leP in H3. lia. move /andP in H3;destruct H3.
-                move /eqP in H3. lia. auto.  
-              } 
-              lia. 
+              eapply Sorted_elim4 with (a0:=a)(x:=a1)(lr:=by_sp) in H3. 
+              assert(a=a1). apply by_sp_antisymmetric. 
+              auto.  apply /andP.
+              auto. subst. destruct H7. auto. exact.
             }
             { case l0 as [| a0 A'] eqn:Hl0.
               { destruct l. simp UM_aux in H5. simpl in H5. auto.
@@ -864,10 +857,10 @@ Proof. funelim (UM_aux (B) (a::A) tb ta). auto.
                   eapply UM_aux_ttqa_a with (a0:=a2).
                   eauto. eauto. 
                   destruct (a_eqb a2 a1) eqn:Ha2a1. move /eqP in Ha2a1.
-                  subst a1. destruct a2. simpl in H4. lia.
-                  move /eqP in Ha2a1. auto. auto. lia.
+                  subst a1. destruct Hnot. auto. auto.
+                  move /eqP in Haa1. auto. auto. lia.
                 }
-                { move /eqP in Haa0. eapply H1 in Haa0.
+                { move /eqP in Haa0. eapply H1 with (ta0:=0)(tb0:=(tb + (sq a - ta)))(a2:=a1)(a3:=a2).
                   all: eauto. 
                 } 
               }
@@ -884,10 +877,10 @@ Proof. funelim (UM_aux (B) (a::A) tb ta). auto.
 Qed.
 
 Lemma UM_aux_fair_bid_in (B:list Bid) (A:list Ask)(tb ta:nat)(b1 b2:Bid)
-(NDB: NoDup (idbs_of B))(NDA: NoDup (idas_of A)):
+(NDB: NoDup (idbs_of B))(NDA: NoDup (idas_of A))(Hnot:b1<>b2):
 Sorted by_dbp B -> 
 Sorted by_sp  A -> 
-b1>b2 -> 
+by_dbp b1 b2 -> 
 In b2 (bids_of (UM_aux B A tb ta)) -> 
 In b1 B ->
 In b1 (bids_of (UM_aux B A tb ta)).
@@ -899,12 +892,11 @@ Proof. funelim (UM_aux B A tb ta). auto. auto.
         { simpl. simpl in H5.  
           destruct H5.
           { subst b2. destruct H6. auto. 
-            assert(b>b1). 
-            { eapply Sorted_elim4 with (a0:=b)(x:=b1)(lr:=by_dbp) in H2. 
-              unfold by_dbp in H2. move /orP in H2. destruct H2. 
-              move /leP in H2. lia. move /andP in H2;destruct H2.
-              move /eqP in H2. lia. auto.  } 
-              lia. 
+            eapply Sorted_elim4 with (a0:=b)(x:=b1)(lr:=by_dbp) in H2. 
+            assert(b=b1). apply by_dbp_antisymmetric. 
+            auto. apply /andP.
+            auto. subst. auto.
+            exact.
           }
           { destruct H6. auto.  right. eapply H with (b2:=b2). 
             all: auto. all: eauto. 
@@ -914,12 +906,11 @@ Proof. funelim (UM_aux B A tb ta). auto. auto.
           { simpl. simpl in H5.  
             destruct H5.
             { subst b2. destruct H6. auto. 
-              assert(b>b1). 
-              { eapply Sorted_elim4 with (a0:=b)(x:=b1)(lr:=by_dbp) in H2. 
-                unfold by_dbp in H2. move /orP in H2. destruct H2. 
-                move /leP in H2. lia. move /andP in H2;destruct H2.
-                move /eqP in H2. lia. auto.  } 
-                lia. 
+              eapply Sorted_elim4 with (a0:=b)(x:=b1)(lr:=by_dbp) in H2. 
+              assert(b=b1). apply by_dbp_antisymmetric. 
+              auto.  apply /andP.
+              auto. subst. auto.
+              exact.
             }
             { destruct H6. auto.  right. eapply H0 with (b2:=b2). 
               all: auto. all: eauto. 
@@ -928,12 +919,11 @@ Proof. funelim (UM_aux B A tb ta). auto. auto.
           { simpl. simpl in H5.  
             destruct H5.
             { subst b2. destruct H6. auto.
-            assert(b>b1). 
-              { eapply Sorted_elim4 with (a0:=b)(x:=b1)(lr:=by_dbp) in H2. 
-                unfold by_dbp in H2. move /orP in H2. destruct H2. 
-                move /leP in H2. lia. move /andP in H2;destruct H2.
-                move /eqP in H2. lia. auto.  } 
-                lia. 
+              eapply Sorted_elim4 with (a0:=b)(x:=b1)(lr:=by_dbp) in H2. 
+              assert(b=b1). apply by_dbp_antisymmetric. 
+              auto.  apply /andP.
+              auto. subst. auto.
+              exact. 
             }
             { destruct H6. auto. right. eapply H1 with (b2:=b2).
               all: auto. all: eauto.
@@ -947,10 +937,10 @@ Proof. funelim (UM_aux B A tb ta). auto. auto.
 Qed.
 
 Lemma UM_aux_fair_ask_in (B:list Bid) (A:list Ask)(tb ta:nat)(a1 a2:Ask)
-(NDB: NoDup (idbs_of B))(NDA: NoDup (idas_of A)):
+(NDB: NoDup (idbs_of B))(NDA: NoDup (idas_of A))(Hnot: a1<>a2):
 Sorted by_dbp B -> 
 Sorted by_sp  A -> 
-a1<a2 -> 
+by_sp a1 a2 -> 
 In a2 (asks_of (UM_aux B A tb ta)) -> 
 In a1 A ->
 In a1 (asks_of (UM_aux B A tb ta)).
@@ -961,13 +951,12 @@ Proof. funelim (UM_aux B A tb ta). auto. auto.
       { destruct (Nat.eqb (bq b - tb) (sq a - ta)) eqn: Heq.
         { simpl. simpl in H5.  
           destruct H5.
-          { subst a2. destruct H6. auto. 
-            assert(a<a1). 
-            { eapply Sorted_elim4 with (a0:=a)(x:=a1)(lr:=by_sp) in H3. 
-              unfold by_sp in H3. move /orP in H3. destruct H3. 
-              move /leP in H3. lia. move /andP in H3;destruct H3.
-              move /eqP in H3. lia. auto.  } 
-              lia. 
+          { subst a2. destruct H6. auto.
+            eapply Sorted_elim4 with (a0:=a)(x:=a1)(lr:=by_sp) in H3. 
+            assert(a=a1). apply by_sp_antisymmetric. 
+            auto. apply /andP.
+            auto. subst. auto.
+            exact. 
           }
           { destruct H6. auto.  right. eapply H with (a2:=a2). 
             all: auto. all: eauto. 
@@ -977,12 +966,11 @@ Proof. funelim (UM_aux B A tb ta). auto. auto.
           { simpl. simpl in H5.  
             destruct H5.
             { subst a2. destruct H6. auto. 
-              assert(a<a1). 
-              { eapply Sorted_elim4 with (a0:=a)(x:=a1)(lr:=by_sp) in H3. 
-                unfold by_sp in H3. move /orP in H3. destruct H3.  
-                move /leP in H3. lia. move /andP in H3;destruct H3.
-                move /eqP in H3. lia. auto.  } 
-                lia. 
+              eapply Sorted_elim4 with (a0:=a)(x:=a1)(lr:=by_sp) in H3. 
+              assert(a=a1). apply by_sp_antisymmetric. 
+              auto. apply /andP.
+              auto. subst. auto.
+              exact. 
             }
             { destruct H6. auto.  right. eapply H0 with (a2:=a2). 
               all: auto. all: eauto. 
@@ -991,13 +979,12 @@ Proof. funelim (UM_aux B A tb ta). auto. auto.
           { simpl. simpl in H5.  
             destruct H5.
             { subst a2. destruct H6. auto.
-            assert(a<a1). 
-              { eapply Sorted_elim4 with (a0:=a)(x:=a1)(lr:=by_sp) in H3. 
-                unfold by_sp in H3. move /orP in H3. destruct H3.  
-                move /leP in H3. lia. move /andP in H3;destruct H3.
-                move /eqP in H3. lia. auto.  } 
-                lia. 
-            }
+              eapply Sorted_elim4 with (a0:=a)(x:=a1)(lr:=by_sp) in H3. 
+              assert(a=a1). apply by_sp_antisymmetric. 
+              auto. apply /andP.
+              auto. subst. auto.
+              exact. 
+             }
             { destruct H6. auto. right. eapply H1 with (a2:=a2).
               all: auto. all: eauto.
             }
@@ -1024,9 +1011,9 @@ Proof. intros. unfold Is_fair.
                       replace (asks_of (replace_column 
                      (UM_aux B (A) 0 0) (uniform_price B (A)))) with
                      (asks_of (UM_aux B (A) 0 0)) in H3. 
-                     eapply UM_aux_fair_ask_in. all:auto. eauto. auto.
-                     apply H1. apply replace_column_asks.
-                     apply replace_column_asks. }
+                     eapply UM_aux_fair_ask_in with (a2:=s'). all:auto.
+                     rewrite <- replace_column_asks in H4. auto. apply H1.
+                     apply replace_column_asks. apply replace_column_asks. }
                    { replace (ttqa (replace_column 
                      (UM_aux B A 0 0) (uniform_price B A)) s) with
                      (ttqa (UM_aux B A 0 0) s). 
@@ -1036,25 +1023,17 @@ Proof. intros. unfold Is_fair.
                       replace (sq a) with (sq a - 0). 
                       eapply UM_aux_ttqa_a with 
                       (a:=a)(a0:=s')(B:=B)(ta:=0)(tb:=0)(A:=A'). all:auto.
-                      destruct (a_eqb s' a) eqn:Ha1. move /eqP in Ha1.
-                      subst s'. destruct a. simpl in H2. lia.
-                      move /eqP in Ha1. auto. 
+                      rewrite <- replace_column_asks in H4. auto. lia.
+                      apply UM_aux_ttqb_fair_ask_t with (a1:=s)(a:=a)(ta:=0)(tb:=0)(B:=B)(A:=A') in H2.
+                      all: try auto. apply H2. move /eqP in Ha. auto.
                       replace (asks_of (replace_column 
-                     (UM_aux B (a::A') 0 0) (uniform_price B (a::A')))) with
-                     (asks_of (UM_aux B (a::A') 0 0)) in H3. auto.
-                     apply replace_column_asks. lia.
-                     move /eqP in Ha. 
-                     eapply UM_aux_ttqb_fair_ask_t with (a1:=s)(a2:=s')
-                     (a:=a)(B:=B)(A:=A')(ta:=0)(tb:=0) in H2.
-                     apply H2. auto. auto. auto. auto. auto.
-                     replace (asks_of (replace_column 
                      (UM_aux B (a::A') 0 0) (uniform_price B (a::A')))) with
                      (asks_of (UM_aux B (a::A') 0 0)) in H3.
                      eapply UM_aux_fair_ask_in. all:auto. eauto. auto.
-                     apply H1. apply replace_column_asks.
-                     replace (asks_of (replace_column 
+                     rewrite <- replace_column_asks in H4. auto. apply H1.
+                     apply replace_column_asks. replace (asks_of (replace_column 
                      (UM_aux B (a::A') 0 0) (uniform_price B (a::A')))) with
-                     (asks_of (UM_aux B (a::A') 0 0)) in H3. auto.
+                     (asks_of (UM_aux B (a::A') 0 0)) in H4. auto.
                      apply replace_column_asks.
                      eapply replace_column_ttqa.
                     }
@@ -1068,7 +1047,8 @@ Proof. intros. unfold Is_fair.
                      (UM_aux B (A) 0 0) (uniform_price B (A)))) with
                      (bids_of (UM_aux B (A) 0 0)) in H3. 
                      eapply UM_aux_fair_bid_in. all:auto. eauto. auto.
-                     apply H1. apply replace_column_bids.
+                     apply H1. auto. auto. apply H1. 
+                     rewrite <-replace_column_bids. auto. 
                      apply replace_column_bids. }
                    { replace (ttqb (replace_column 
                      (UM_aux B A 0 0) (uniform_price B A)) b) with
@@ -1079,9 +1059,7 @@ Proof. intros. unfold Is_fair.
                       replace (bq b1) with (bq b1 - 0). 
                       eapply UM_aux_ttqb_b with 
                       (b:=b1)(b0:=b')(B:=B')(ta:=0)(tb:=0)(A:=A). all:auto.
-                      destruct (b_eqb b' b1) eqn:Hb1. move /eqP in Hb1.
-                      subst b'. destruct b1. simpl in H2. lia.
-                      move /eqP in Hb1. auto. 
+                      cut(b1<>b'). auto. apply H1. 
                       replace (bids_of (replace_column 
                      (UM_aux (b1::B') (A) 0 0) (uniform_price (b1::B') (A)))) with
                      (bids_of (UM_aux (b1::B') (A) 0 0)) in H3. auto.
@@ -1089,12 +1067,13 @@ Proof. intros. unfold Is_fair.
                      move /eqP in Hb. 
                      eapply UM_aux_ttqb_fair_bid_t with (b1:=b)(b2:=b')
                      (b:=b1)(B:=B')(A:=A)(ta:=0)(tb:=0) in H2.
-                     apply H2. auto. auto. auto. auto. auto.
+                     apply H2. auto. auto. eauto. apply H1. eauto. eauto.
                       replace (bids_of (replace_column 
                      (UM_aux (b1::B') (A) 0 0) (uniform_price (b1::B') (A)))) with
                      (bids_of (UM_aux (b1::B') (A) 0 0)) in H3. 
-                     eapply UM_aux_fair_bid_in. all:auto. eauto. auto.
-                     apply H1. apply replace_column_bids.
+                     eapply UM_aux_fair_bid_in with (B:=b1::B')(A:=A)(ta:=0)(tb:=0) in H2. 
+                     all:auto.
+                     apply H1. apply H1. apply replace_column_bids.
                      replace (bids_of (replace_column 
                      (UM_aux (b1::B') (A) 0 0) (uniform_price (b1::B') (A)))) with
                      (bids_of (UM_aux (b1::B') (A) 0 0)) in H3. auto.
@@ -1112,7 +1091,6 @@ Lemma exists_ttq_top (B:list Bid)(A:list Ask)(M:list fill_type)(b:Bid)(a:Ask)
 (NZT: forall m : fill_type, In m M -> tq m > 0)
 (NZA:(forall a0, In a0 (a::A) -> (sq a0) > 0))
 (NZB:(forall b0, In b0 (b :: B) -> bq b0 > 0))
-(Hanti: (antisymmetric by_sp)/\(antisymmetric by_dbp))
 (NDA:NoDup (idas_of (a::A)))(NDB:NoDup (idbs_of (b::B))):
 Sorted by_dbp (b::B) -> 
 Sorted by_sp (a::A) -> 
@@ -1310,7 +1288,6 @@ Lemma exists_opt (B:list Bid)(A:list Ask)(M:list fill_type)(b:Bid)(a:Ask)
 (NZT: forall m : fill_type, In m M -> tq m > 0)
 (NZA:(forall a0, In a0 (a::A) -> (sq a0) > 0))
 (NZB:(forall b0, In b0 (b :: B) -> bq b0 > 0))
-(Hanti: (antisymmetric by_sp)/\(antisymmetric by_dbp))
 (NDA:NoDup (idas_of (a::A)))(NDB:NoDup (idbs_of (b::B))):
 Sorted by_dbp (b::B) -> 
 Sorted by_sp (a::A) -> 
@@ -1418,8 +1395,7 @@ Theorem UM_aux_OPT (B:list Bid)(A:list Ask)(M:list fill_type)
 (NDA:NoDup (ida a::(idas_of A)))(NDB:NoDup (idb b::(idbs_of B)))
 (NZT: forall m : fill_type, In m M -> tq m > 0)
 (NZB: forall b0, In b0 ((Mk_bid (bp b) (btime b) (bq b - tb) (idb b))::B) -> (bq b0)>0)
-(NZA: forall a0, In a0 ((Mk_ask (sp a) (stime a) (sq a - ta) (ida a))::A) -> (sq a0)>0)
-(Hanti: (antisymmetric by_sp)/\(antisymmetric by_dbp)):
+(NZA: forall a0, In a0 ((Mk_ask (sp a) (stime a) (sq a - ta) (ida a))::A) -> (sq a0)>0):
 Sorted by_dbp (b::B) -> 
 Sorted by_sp (a::A) -> 
 (Is_uniform M ((Mk_bid (bp b) (btime b) (bq b - tb) (idb b))::B)
@@ -1685,8 +1661,7 @@ Theorem UM_aux_optimal (B:list Bid)(A:list Ask)(M:list fill_type)
 (NZA: forall a, In a A -> (sq a)>0)
 (NDA:NoDup (idas_of A))
 (NDB:NoDup (idbs_of B))
-(NZT: forall m : fill_type, In m M -> tq m > 0)
-(Hanti: (antisymmetric by_sp)/\(antisymmetric by_dbp)):
+(NZT: forall m : fill_type, In m M -> tq m > 0):
 Sorted by_dbp B -> 
 Sorted by_sp A ->
 (Is_uniform M B A)

@@ -20,6 +20,8 @@ Require Export mMM.
 Section MM_Process.
 
 
+Hypothesis unique_timestampbid:forall b1 b2, (btime b1 = btime b2) -> b1 = b2.
+Hypothesis unique_timestampask:forall s1 s2, (stime s1 = stime s2) -> s1 = s2.
 
 Definition MM B A:=  
 (MM_aux (sort by_dbp B) (sort by_dsp A) 0 0).
@@ -73,8 +75,7 @@ Theorem MM_Is_IR_Matching (B:list Bid)(A:list Ask)
 (NZB: forall b, In b B -> (bq b)>0)
 (NZA: forall a, In a A -> (sq a)>0)
 (NDA:NoDup (idas_of A))
-(NDB:NoDup (idbs_of B))
-(Hanti: (antisymmetric by_dsp)/\(antisymmetric by_dbp)):
+(NDB:NoDup (idbs_of B)):
 matching_in B A (MM B A)/\Is_IR (MM B A).
 Proof. intros. split. eapply MM_Is_Matching.
        all:auto. apply MM_aux_is_Ind_Rat.
@@ -90,8 +91,7 @@ Theorem MM_Maximum (B:list Bid)(A:list Ask)(M:list fill_type)
 (NZA: forall a, In a A -> (sq a)>0)
 (NDA:NoDup (idas_of A))
 (NDB:NoDup (idbs_of B))
-(NZT: forall m : fill_type, In m M -> tq m > 0)
-(Hanti: (antisymmetric by_dsp)/\(antisymmetric by_dbp)):
+(NZT: forall m : fill_type, In m M -> tq m > 0):
 Sorted by_dbp B ->
 Sorted by_dsp A ->
 matching_in B A M /\ Is_IR M->
@@ -99,12 +99,12 @@ QM((MM B A))>=QM(M).
 Proof. intros.
        assert(HA:(sort by_dsp A) = A).
        { 
-        apply sort_equal_nodup. apply by_sp_refl. apply Hanti.
+        apply sort_equal_nodup. apply by_dsp_refl. apply by_dsp_antisymmetric.
         all: auto. 
        }
        assert(HB:(sort by_dbp B)  = B).
        {
-        apply sort_equal_nodup. apply by_dbp_refl. apply Hanti.
+        apply sort_equal_nodup. apply by_dbp_refl. apply by_dbp_antisymmetric.
         all: auto.
        }
         unfold MM.
@@ -124,12 +124,11 @@ Theorem MM_FAIR_correct (B:list Bid)(A:list Ask)
 (NZB: forall b, In b B -> (bq b)>0)
 (NZA: forall a, In a A -> (sq a)>0)
 (NDA:NoDup (idas_of A))
-(NDB:NoDup (idbs_of B))
-(Hnti: (antisymmetric by_dsp)/\(antisymmetric by_dbp)/\(antisymmetric by_sp )):
+(NDB:NoDup (idbs_of B)):
 Is_fair (MM_FAIR B A) B A.
 Proof. apply FAIR_is_fair. all:auto. 
        apply MM_NZT. eauto. eauto.
-       split. apply Hnti. apply Hnti. apply MM_Is_Matching.
+       apply MM_Is_Matching.
        all:auto. Qed.
 
 End MM_Process.

@@ -39,6 +39,7 @@ Require Export Lists.List.
 Require Export GenReflect SetSpecs.
 Require Export Lia.
 
+
 Set Implicit Arguments.
 
 Section Sorting.
@@ -46,9 +47,8 @@ Section Sorting.
 
   Variable lr: A->A-> bool.
   Notation " a <=r b":= (lr a b)(at level 70, no associativity).
-  
- (* ------------- sorting a list of elements by lr relation ------------------------------*)
-  
+  (* ------------- sorting a list of elements by lr relation ------------------------------*)
+
   Inductive  Sorted : list A-> Prop:=
   | nil_Sorted: Sorted nil
   | cons_Sorted (a:A)(l: list A): Sorted l -> (forall x, (In x l -> (a <=r x))) -> Sorted (a::l).
@@ -128,18 +128,18 @@ Section Sorting.
            simpl in H. destruct ( a <=r a0).   destruct H. auto. auto. destruct H.
            right;subst x;auto. apply IHl in H as H2. destruct H2. auto. right. auto.  } Qed.
    
-  Definition comparable (lr: A->A-> bool) := forall x y, lr x y=false -> lr y x.
- 
+(*  Definition comparable (lr: A->A-> bool) := forall x y, lr x y =false-> lr y x.*)
+Definition comparable (lr: A->A-> bool) := forall x y, lr x y =true \/ lr y x = true.
   Lemma putin_correct (H_trans: transitive lr)(H_comp: comparable lr):
     forall (a:A) (l: list A), Sorted l -> Sorted (putin a l).
   Proof. { intros a l. revert a.  induction l.
          { intros a1 H.  simpl. apply Sorted_single. }
            simpl. intros a1 H.  destruct ( a1 <=r a) eqn:H0.
          {  auto.  }
-         { cut ( a <=r a1 = true).
-           intro H1.  constructor. eauto. 
+         { unfold comparable in H_comp. specialize (H_comp a1 a). 
+           destruct H_comp. { rewrite H1 in H0. inversion H0. } { constructor. eauto. 
            intros x H2. apply putin_elim in H2 as H3. destruct H3.
-           subst x;auto. eauto.  apply H_comp. eauto. } } Qed.
+           subst x;auto. eauto. } } } Qed.
   
   Lemma nodup_putin (a:A)(l:list A): NoDup (a::l)-> NoDup (putin a l).
   Proof.  { revert a. induction l.

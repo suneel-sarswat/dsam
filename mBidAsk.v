@@ -40,6 +40,7 @@ Require Export DecList DecType MoreDecList.
   
 Section BidAsk.
 
+
 Record Bid:Type:= Mk_bid{
                         bp:> nat;
                         btime: nat;
@@ -58,6 +59,7 @@ Record Ask:Type:= Mk_ask{
                         ida: nat;}.
 
 Definition a_eqb (x y: Ask): bool:= (ida x == ida y) && (stime x == stime y) && (sq x == sq y) && (  sp x ==  sp y).
+
 
 (*
 Hypothesis unique_idb : forall b1 b2:Bid, (idb(b1) = idb(b2))-> (b1 = b2).

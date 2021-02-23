@@ -15,7 +15,7 @@ M is a matching in the list of bids B and list of asks A.
 3. NDB is assertations that bids are duplicate-free. Similarly, NDA.
 4. NZT, NZA and NZB are assertations that quantity of a transaction, ask and
  bid is non-zero, respectively.
-5. Hanti is for the anti-symmetric property of Bids and Asks.
+5. unique_timestampbid and unique_timestampask are for the unique time-stamp.
 6a. sort by_dbp : order the lists of bids by their competativeness.
 6b. sort by_sp :  order the lists of asks by their competativeness.
 6c. sort by_dsp : increasing order the lists of asks by their competativeness.
@@ -80,13 +80,13 @@ replace_column
 (uniform_price (sort by_dbp B) (sort by_sp A)).
 *)
 
+Print UM_aux.
 Theorem UM_main (B:list Bid)(A:list Ask)(M:list fill_type)
 (NZT: forall m : fill_type, In m M -> tq m > 0)
 (NZB: forall b, In b B -> (bq b)>0)
 (NZA: forall a, In a A -> (sq a)>0)
 (NDA:NoDup (idas_of A))
-(NDB:NoDup (idbs_of B))
-(Hanti: (antisymmetric by_sp)/\(antisymmetric by_dbp)):
+(NDB:NoDup (idbs_of B)):
 Is_uniform M B A ->
 (Is_uniform (UM B A) B A)/\  (*UM is uniform and IR*)
 (Is_fair (UM B A) B A)/\     (*UM is fair *)
@@ -112,8 +112,7 @@ Theorem MM_main (B:list Bid)(A:list Ask)(M:list fill_type)
 (NZA: forall a, In a A -> (sq a)>0)
 (NDA:NoDup (idas_of A))
 (NDB:NoDup (idbs_of B))
-(NZT: forall m : fill_type, In m M -> tq m > 0)
-(Hanti: (antisymmetric by_dsp)/\(antisymmetric by_dbp)):
+(NZT: forall m : fill_type, In m M -> tq m > 0):
 Sorted by_dbp B ->
 Sorted by_dsp A ->
 matching_in B A M /\ Is_IR M->
@@ -132,8 +131,7 @@ Theorem MM_fair (B:list Bid)(A:list Ask)(M:list fill_type)
 (NZB: forall b, In b B -> (bq b)>0)
 (NZA: forall a, In a A -> (sq a)>0)
 (NDA:NoDup (idas_of A))
-(NDB:NoDup (idbs_of B))
-(Hnti: (antisymmetric by_dsp)/\(antisymmetric by_dbp)/\(antisymmetric by_sp )):
+(NDB:NoDup (idbs_of B)):
 Is_fair (MM_FAIR B A) B A.
 Proof. apply MM_FAIR_correct. all:auto. Qed. 
 
